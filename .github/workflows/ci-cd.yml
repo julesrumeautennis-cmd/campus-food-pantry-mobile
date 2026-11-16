@@ -121,7 +121,9 @@ jobs:
       - name: Validate against Vercel's published configuration schema
         run: |
           curl --fail --silent --show-error --max-time 30 https://openapi.vercel.sh/vercel.json --output /tmp/vercel-schema.json
-          npx --yes --package=ajv-cli@5.0.0 --package=ajv-formats@3.0.1 ajv validate --strict=false -c ajv-formats -s /tmp/vercel-schema.json -d vercel.json
+          python3 -m venv /tmp/vercel-schema-check
+          /tmp/vercel-schema-check/bin/pip install --disable-pip-version-check jsonschema==4.25.1
+          /tmp/vercel-schema-check/bin/python -c 'import json, jsonschema; jsonschema.validate(json.load(open("vercel.json")), json.load(open("/tmp/vercel-schema.json"))); print("Vercel configuration is valid")'
 
   ci:
     name: CI passed

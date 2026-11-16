@@ -45,7 +45,7 @@ public class SecurityConfig {
                     res.getWriter().write("{\"code\":\"FORBIDDEN\",\"message\":\"Administrator access required.\",\"fields\":{}}");
                 })).build();
     }
-    @Bean CorsConfigurationSource cors(@Value("${pantry.cors-origins}") String origins) {
+    @Bean CorsConfigurationSource corsConfigurationSource(@Value("${pantry.cors-origins}") String origins) {
         var config = new CorsConfiguration();
         config.setAllowedOrigins(Arrays.stream(origins.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList());
         config.setAllowedMethods(List.of("GET","POST","PATCH","OPTIONS"));
