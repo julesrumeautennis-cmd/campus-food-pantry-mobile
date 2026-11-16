@@ -62,6 +62,8 @@ Every PR to main runs original console tests, Java/Spring tests and Docker build
 
 ## Deployment and status
 
+The [Figma design](https://www.figma.com/design/0yQ1YSKVzvgdbivmssuHS2?node-id=13-1286) contains 56 member/admin screens and states, reusable components and clickable flows. Read the [design handoff](docs/DESIGN.md) before implementing it; the proposal has not yet replaced the React Native interface.
+
 vercel.json declares the Expo web service and Java Docker API service under one origin. Supabase remains responsible for Auth and PostgreSQL. Vercel Services/container hosting is beta. Git deployment is disabled; the GitHub job builds, stages, smoke-tests and promotes only a validated, protected main commit after the Vercel project and protected credentials have been configured. No cloud deployment has been performed yet.
 
 Read [Vercel setup](docs/DEPLOYMENT_VERCEL.md), [verified status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), [course-code reuse](docs/REUSE.md), and [CONTEXT.md](CONTEXT.md) before changing product decisions.

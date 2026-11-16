@@ -9,7 +9,21 @@
 - Its first Expo typecheck found two React Native compatibility errors. The initial URL callback now accepts undefined; the removed StatusBar backgroundColor property is no longer passed.
 - GitHub Actions run 43959100299 passed every validation: locked npm ci, TypeScript, Expo compatibility, all three platform bundles, Java/Docker and PostgreSQL. The aggregate CI passed check succeeded. Production deployment was correctly skipped for the PR.
 - PR validation ends with CI passed, which fails if any prerequisite fails, skips or is cancelled.
-- The main ruleset is prepared at .github/rulesets/main.json. Jules reports making the repository public, but subsequent connector reads still returned private=true and HTTP 403 for rulesets. Protection is not verified active. PR #1 stays a draft pending that check; no paid plan upgrade is authorized.
+- The main ruleset is prepared at .github/rulesets/main.json. The latest GitHub reads now confirm public visibility, an empty ruleset list and main protected=false. The connector cannot write repository administration settings, and no authenticated GitHub CLI is available locally. Activate the prepared ruleset in Settings before merging. PR #1 remains a draft; no paid plan upgrade is required or authorized.
+
+## Vercel migration validation
+
+- Run [43965027169](https://github.com/julesrumeautennis-cmd/campus-food-pantry-mobile/actions/runs/43965027169) passed every validation on migration commit `3f0615baba4025d25008cc1031ccfcc192950ff3`: Java/Docker, PostgreSQL, Expo, Vercel schema and the aggregate **CI passed**.
+- The real container starts with the Vercel profile, a custom port and a limited database login. HTTP checks verify health/readiness, unauthenticated business/admin routes, forwarded same-origin access, rejection of an untrusted origin, and a safe 503 when database rights are removed.
+- These checks exposed and fixed the CORS bean name: Spring Security now uses the intended origin policy. The schema validator uses Draft 7 because Vercel's published schema contains modern keywords despite its Draft 4 declaration. It validates both the full schema and project configuration.
+- Three API-base tests cover same-origin web, explicit native origins and invalid configuration. TypeScript and iOS/Android/web exports all pass. Production deployment is skipped for PRs; no live Vercel test is claimed.
+
+## Figma design
+
+- [Campus Pantry — Mobile experience](https://www.figma.com/design/0yQ1YSKVzvgdbivmssuHS2?node-id=13-1286) was created in the selected jules rumeau's team.
+- 56 screens/states, ten reusable component families and five prototype starting points cover member, authentication, FIFO administration, inventory, reports, movements and inspections.
+- The visual review corrected text reflow; the final screen audit found no unintended child overflow or undersized linked targets. See [DESIGN.md](DESIGN.md) for scope, reference patterns and limitations.
+- The proposal is editable and persistent in Figma. It is not yet implemented in React Native and uses illustrative data.
 
 ## Existing cloud resources
 
@@ -22,7 +36,7 @@
 
 ## Remaining work
 
-1. Verify the reported public visibility change, then activate main's ruleset before merging. Check the latest CI result for the Vercel migration.
+1. Activate main's prepared ruleset before merging; public visibility is confirmed. Require the latest CI passed result.
 2. Configure the Vercel project after checking its allowance, limited JDBC credentials, same-origin web settings, email delivery and Auth redirects.
 3. Verify Jules's Auth UUID, configure ADMIN_USER_ID, and test actual member/admin HTTP flows with distinct accounts.
 4. Validate idempotency, FIFO/stock/quota concurrency and rollback through the real API, then test on a phone.

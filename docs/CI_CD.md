@@ -25,7 +25,7 @@ The importable .github/rulesets/main.json requires a PR, **CI passed**, an up-to
 3. Import the JSON, confirm main and CI passed, and save enforcement as Active.
 4. Verify the rule appears and a failing PR cannot merge.
 
-On 2026-11-16, Jules reported making the repository public. The subsequent connector checks still returned `private=true` and HTTP 403 on rulesets: "Upgrade to GitHub Pro or make this repository public to enable this feature." Recheck the actual visibility and active ruleset; do not treat the intended visibility change as proof of protection. PR #1 remains a draft until protection can be verified. No paid upgrade is authorized. The connector does not expose ruleset writes, so import the prepared JSON through GitHub Settings once available.
+The latest checks on 2026-11-16 confirm public visibility, an empty ruleset list and main protected=false. The connector does not expose administration writes; import the prepared JSON through GitHub Settings. PR #1 remains a draft until protection is active. No paid upgrade is needed or authorized.
 
 ## Delivery after merge
 
