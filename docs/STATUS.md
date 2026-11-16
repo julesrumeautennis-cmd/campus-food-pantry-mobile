@@ -9,7 +9,7 @@
 - Its first Expo typecheck found two React Native compatibility errors. The initial URL callback now accepts undefined; the removed StatusBar backgroundColor property is no longer passed.
 - GitHub Actions run 43959100299 passed every validation: locked npm ci, TypeScript, Expo compatibility, all three platform bundles, Java/Docker and PostgreSQL. The aggregate CI passed check succeeded. Production deployment was correctly skipped for the PR.
 - PR validation ends with CI passed, which fails if any prerequisite fails, skips or is cancelled.
-- The main ruleset is prepared at .github/rulesets/main.json but has not been activated. See CI_CD.md; a file in Git does not enforce protection.
+- The main ruleset is prepared at .github/rulesets/main.json. GitHub returned HTTP 403: rulesets on this private repository require GitHub Pro or a public repository. It is not activated. The repository stays private and PR #1 stays a draft; no plan purchase or visibility change is authorized.
 
 ## Existing cloud resources
 
@@ -21,7 +21,7 @@
 
 ## Remaining work
 
-1. Finish green CI and activate main's ruleset before merging.
+1. Decide how to handle GitHub's private-repository plan restriction, then activate main's ruleset before merging. The checks themselves pass.
 2. Configure the Render Free service, limited JDBC credentials, exact CORS origins, email delivery and Auth redirects.
 3. Verify Jules's Auth UUID, configure ADMIN_USER_ID, and test actual member/admin HTTP flows with distinct accounts.
 4. Validate idempotency, FIFO/stock/quota concurrency and rollback through the real API, then test on a phone.

@@ -24,7 +24,7 @@ The importable .github/rulesets/main.json requires a PR, **CI passed**, an up-to
 3. Import the JSON, confirm main and CI passed, and save enforcement as Active.
 4. Verify the rule appears and a failing PR cannot merge.
 
-Private personal repositories require GitHub Pro or another eligible plan for rulesets. Check the existing account entitlement; do not change repository visibility or buy a plan for this setup.
+On 2026-11-16, GitHub's rulesets API returned HTTP 403 for this private repository: "Upgrade to GitHub Pro or make this repository public to enable this feature." Mandatory protection is therefore unavailable under the current account entitlement. The repository remains private and PR #1 remains a draft. Do not buy a plan or change visibility without Jules's explicit decision. The import steps above apply only after an eligible entitlement or an authorized visibility change.
 
 ## Delivery after merge
 
