@@ -1,40 +1,25 @@
-# Validation et limites
+# Validation
 
-## Vérifications effectivement réalisées
+## Completed checks
 
-| Contrôle | Résultat |
-|---|---|
-| Comparaison du dossier legacy-console avec l'archive fournie | 11 fichiers identiques octet pour octet |
-| Classes Item, Inventory, Student, Staff et Request | Seule la déclaration de package change |
-| Tests originaux RegressionTests | 16 réussites, 0 échec |
-| Compilation du domaine adapté avec javac --release 21 | Réussie |
-| DomainAdapterChecks | 16 réussites |
-| Analyse syntaxique TypeScript 6.0.3 | 10 fichiers TS/TSX, zéro erreur de syntaxe ; pas de résolution des types/dépendances |
-| Migration de sept tables privées dans Supabase | Appliquée |
-| Contraintes SQL : quota >5, semaine non lundi, stock négatif, refus sans motif, approbation sans décision | Rejetées correctement ; données de contrôle annulées |
-| RLS + droits anon/authenticated | Sept tables protégées |
-| Conseiller sécurité Supabase | Aucune alerte retournée |
-| Conseiller performance Supabase | Sept index encore inutilisés, information attendue sur une base neuve ; conservés pour les parcours prévus |
-| Accès Render existant | My Workspace accessible ; aucun service retourné lors de la vérification |
-| render.yaml | YAML analysé avec succès ; un seul web service Free, aucun disque ni autre ressource ; chemins Docker existants et variables privées non renseignées |
-| git diff --check après configuration Render | Réussi |
+- Original Java snapshot: 11 files preserved byte-for-byte.
+- Local JDK: 16 console regressions and 16 adapted-domain checks passed.
+- GitHub Actions 43958382478: original regressions, production Docker build and Maven verify passed. Six JUnit tests cover admin/JWT validation, adapted-domain behavior and readiness responses.
+- Same run: fresh PostgreSQL migration, demo data, five database constraints and private-table grants passed.
+- Initial Expo typecheck exposed two compatibility errors, now fixed. Run 43959100299 passed locked npm ci, TypeScript, Expo dependency compatibility, iOS/Android/web bundling and every other CI job. Deployment was skipped on the PR as intended.
+- Previous Supabase checks confirmed seven private tables, RLS and limited database grants. These are schema checks, not API concurrency tests.
 
-La validation complète par le schéma/CLI Render et la création du Blueprint n'ont pas été exécutées. `mvn verify` a été tenté après l'ajout du contrôle `/health/ready` mais échoue avant compilation : Maven Central est inaccessible par DNS. Les deux nouveaux tests JUnit de disponibilité sont donc non exécutés. Aucun résultat de build Docker ou HTTP distant n'est disponible.
+Use PR #1's latest **CI passed** result for the current revision; an earlier successful job is not proof of the final commit.
 
-Les vérifications SQL testent le schéma, pas les transactions de l'API Java. Le contrôle syntaxique TSX ne résout pas les modules et ne prouve pas la compatibilité Expo.
+## Still required before calling the app deployed
 
-## À exécuter dès que les dépendances sont disponibles
+1. Verify real JDBC credentials and HTTPS API readiness.
+2. Exercise HTTP 401/403 handling, member ownership and forged/expired JWT rejection.
+3. Submit the same idempotency key twice; changed contents with the same key must conflict.
+4. Race approvals against the last stock and the same request; ensure atomic quota/stock/history changes.
+5. Force a transactional failure and verify rollback.
+6. Check Sunday/Monday Chicago quota boundaries, expiration dates, removed lots and stale FIFO decisions.
+7. Test signup, email confirmation, recovery and redirects with actual accounts, then Jules's verified admin UUID.
+8. Verify small screens, large text, keyboard, loading/error states, offline behavior and account changes on a phone.
 
-`mvn test`, `npm run typecheck`, `npm run check:expo`, `npm run build:web`, puis les parcours suivants sur une base de test :
-
-1. Visiteur sans jeton → 401 ; membre sur route admin → 403 ; JWT d'un autre projet/expiré/non signé → refus.
-2. Alice ne peut pas lire la demande de Bob ; elle ne peut pas transmettre un autre userId ou un rôle dans son panier/profil.
-3. Double soumission avec même clé et même panier → un seul ID ; même clé/panier différent → 409.
-4. Deux membres demandent le dernier stock : seule la première approbation peut consommer ce stock.
-5. Deux administrateurs/appareils traitent le même ID : un seul mouvement ; jamais de traitement automatique de l'ID suivant.
-6. Forcer une panne après la première écriture d'approbation : toute la transaction doit revenir à l'état précédent.
-7. Tester quota dimanche/lundi à Chicago, changement d'heure, expiration aujourd'hui/demain, retrait d'un lot encore présent dans un panier.
-8. Sign-up, confirmation, sign-in, sign-out, reset password avec email réel, redirection web et redirection sur iPhone.
-9. Petits écrans, grands caractères, clavier, retour arrière, chargements/erreurs/vides, reconnexion et changement de compte.
-
-Ressources : https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index ; https://docs.expo.dev/get-started/start-developing/ ; https://supabase.com/docs/guides/auth/auth-smtp
+iOS/Android JavaScript bundles do not prove a signed native build or TestFlight installation. Deployment is not enabled by a workflow file alone.
