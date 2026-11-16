@@ -19,9 +19,24 @@ jobs:
     name: Java and Docker
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pantry_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pantry_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: pantry_test
+      PGPASSWORD: ci-only-password
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
           java-version: '21'
@@ -32,6 +47,8 @@ jobs:
           java -cp .local/legacy-classes RegressionTests
       - name: Build production image and run Maven verify
         run: docker build --tag campus-pantry-api:ci backend
+      - name: Start Vercel profile and verify HTTP behavior
+        run: bash scripts/check-api.sh
 
   database:
     name: PostgreSQL constraints
@@ -53,7 +70,7 @@ jobs:
       PGDATABASE: pantry_test
       PGPASSWORD: ci-only-password
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Prepare isolated Auth schema fixture
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
@@ -78,8 +95,8 @@ jobs:
     env:
       CI: 'true'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
@@ -87,13 +104,29 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run check:expo
+      - name: Test web and native API configuration
+        run: node --experimental-strip-types --test tests/*.test.mjs
       - name: Bundle iOS, Android and web
         run: npx expo export --platform all
+
+  vercel:
+    name: Vercel configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Validate against Vercel's published configuration schema
+        run: |
+          curl --fail --silent --show-error --max-time 30 https://openapi.vercel.sh/vercel.json --output /tmp/vercel-schema.json
+          npx --yes --package=ajv-cli@5.0.0 --package=ajv-formats@3.0.1 ajv validate --strict=false -c ajv-formats -s /tmp/vercel-schema.json -d vercel.json
 
   ci:
     name: CI passed
     if: ${{ always() }}
-    needs: [backend, database, mobile]
+    needs: [backend, database, mobile, vercel]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -102,35 +135,71 @@ jobs:
           BACKEND: ${{ needs.backend.result }}
           DATABASE: ${{ needs.database.result }}
           MOBILE: ${{ needs.mobile.result }}
+          VERCEL: ${{ needs.vercel.result }}
         run: |
           test "$BACKEND" = success
           test "$DATABASE" = success
           test "$MOBILE" = success
+          test "$VERCEL" = success
 
   deploy:
-    name: Deploy validated main to Render
+    name: Stage and promote validated main on Vercel
     needs: ci
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.RENDER_DEPLOY_ENABLED == 'true' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VERCEL_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     environment: production
     concurrency:
-      group: render-production
+      group: vercel-production
       cancel-in-progress: false
     steps:
-      - name: Trigger deployment of the validated commit
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Verify release branch and install pinned CLI
         env:
           GH_TOKEN: ${{ github.token }}
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        shell: bash
         run: |
           set -euo pipefail
-          test -n "$RENDER_DEPLOY_HOOK_URL" || { echo 'Missing production deploy hook.'; exit 1; }
+          test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.protected')" = true || { echo 'Protect main before enabling deployment.'; exit 1; }
           current=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
-          if [ "$current" != "$GITHUB_SHA" ]; then
-            echo 'A newer commit is on main; skipping this obsolete deployment.'
-            exit 0
-          fi
-          curl --fail --silent --show-error --max-time 60 --request POST \
-            "${RENDER_DEPLOY_HOOK_URL}&ref=${GITHUB_SHA}" --output /tmp/render-deploy.json
-          echo 'Render accepted the deployment request; rollout and health must be checked in Render.'
+          test "$current" = "$GITHUB_SHA" || { echo 'Obsolete commit; refusing release.'; exit 1; }
+          npm install --global vercel@65.4.0
+      - name: Pull production settings
+        run: vercel pull --yes --environment=production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Build production services
+        run: vercel build --prod
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Stage without assigning production domains
+        id: stage
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          url=$(vercel deploy --prebuilt --prod --skip-domain)
+          DEPLOYMENT_URL="$url" node --input-type=module -e 'const v=process.env.DEPLOYMENT_URL;const u=new URL(v);if(u.protocol!=="https:"||u.origin!==v||!u.hostname.endsWith(".vercel.app"))process.exit(1);'
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+      - name: Verify staged web and Java API
+        run: node scripts/check-deployment.mjs
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Promote only if the tested commit is still current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$GITHUB_SHA" || { echo 'A newer commit exists; refusing promotion.'; exit 1; }
+          vercel promote "$DEPLOYMENT_URL" --yes
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}

@@ -8,7 +8,7 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Render must not accept a deployment whose database/schema is inaccessible. */
+/** Deployment validation must reject an inaccessible database or schema. */
 @RestController
 public class ReadinessController {
     private final JdbcTemplate db;

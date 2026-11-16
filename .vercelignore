@@ -1,0 +1,16 @@
+.git/
+.github/
+.local/
+**/.env
+**/.env.*
+**/.vercel/
+**/node_modules/
+**/target/
+**/dist/
+**/*.log
+**/*.class
+legacy-console/
+docs/
+scripts/
+AGENTS.md
+CONTEXT.md

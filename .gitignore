@@ -9,6 +9,7 @@
 *.log
 .local/
 artifacts/
+**/.vercel/
 coverage/
 **/.DS_Store
 **/Thumbs.db

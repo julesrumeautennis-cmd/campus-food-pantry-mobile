@@ -1,10 +1,12 @@
 import { supabase } from './supabase';
-export const apiBase = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+import { Platform } from 'react-native';
+import { resolveApiBase } from './api-base';
+export const apiBase = resolveApiBase(process.env.EXPO_PUBLIC_API_URL, Platform.OS);
 export class ApiFailure extends Error {
   constructor(message: string, public status: number, public code: string) { super(message); }
 }
 export async function api<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
-  if (!apiBase) throw new ApiFailure('The pantry service has not been configured yet.', 0, 'NOT_CONFIGURED');
+  if (apiBase === undefined) throw new ApiFailure('The pantry service has not been configured yet.', 0, 'NOT_CONFIGURED');
   if (!supabase) throw new ApiFailure('Sign-in is not configured yet.', 0, 'NOT_CONFIGURED');
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session) throw new ApiFailure('Please sign in again.', 401, 'UNAUTHENTICATED');
