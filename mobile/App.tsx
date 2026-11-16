@@ -22,7 +22,7 @@ export default function App() {
       if (Platform.OS !== 'web') { if (state === 'active') supabase!.auth.startAutoRefresh(); else supabase!.auth.stopAutoRefresh(); }
     });
     if (Platform.OS !== 'web' && AppState.currentState === 'active') supabase.auth.startAutoRefresh();
-    async function receive(url: string | null) {
+    async function receive(url: string | null | undefined) {
       if (!url || Platform.OS === 'web') return;
       try {
         const params = new URLSearchParams(url.split('#')[1] || url.split('?')[1] || '');
@@ -38,7 +38,7 @@ export default function App() {
     const links = Linking.addEventListener('url', event => { void receive(event.url); });
     return () => { active = false; subscription.unsubscribe(); appState.remove(); links.remove(); supabase!.auth.stopAutoRefresh(); };
   }, []);
-  return <SafeAreaView style={s.screen}><StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+  return <SafeAreaView style={s.screen}><StatusBar barStyle="dark-content" />
     {!authConfigured ? <View style={[s.content, s.container]}><Heading title="Campus Food Pantry" description="The app needs its Supabase connection before sign-in is available." /><Notice text="Copy mobile/.env.example to .env, add the public Supabase key and API URL, then restart Expo." /></View> : loading ? <View style={[s.container, { justifyContent: 'center' }]}><ActivityIndicator size="large" color={colors.green} /></View> : <>
       {error ? <Notice text={error} error /> : null}
       {!session || recovery ? <AuthScreen recovery={recovery} onRecovered={() => setRecovery(false)} /> : <PantryApp key={session.user.id} />}
