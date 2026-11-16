@@ -11,17 +11,18 @@ Lire ce fichier puis `docs/ARCHITECTURE.md`, `docs/STATUS.md` et `docs/REUSE.md`
 - Un seul administrateur : Jules, déterminé par `ADMIN_USER_ID` côté serveur. L'UUID vérifié n'a pas encore été fourni. Aucun « premier utilisateur admin ».
 - Design anglais inspiré du projet Google Stitch fourni : vert profond, fond menthe clair, cartes sobres, quota en cinq segments. Ajouter les écrans de connexion et d'administration manquants.
 - Aucun achat ou abonnement payant autorisé. Ne pas modifier l'ancien dépôt ni l'ancien projet Supabase.
-- Dernière instruction du 11 novembre : utiliser la connexion Render existante pour l'API Java, exclusivement sur Free. Cette décision remplace le refus précédent de Render. Accès confirmé à My Workspace ; aucune réinstallation et aucun service créé. Lire `docs/DEPLOYMENT_RENDER.md` avant de reprendre le déploiement.
+- Dernière instruction du 16 novembre : remplacer Render par **Vercel**, en gardant Java. Un projet Vercel Services regroupe l'export web Expo et le conteneur Java ; Supabase reste indépendant. Services/container est en bêta. Aucun achat ni dépassement payant autorisé. Lire `docs/DEPLOYMENT_VERCEL.md` avant le déploiement.
+- Jules demande ensuite un design Figma affirmé, cohérent avec le thème de la pantry, ses fonctionnalités et des conventions mobiles familières. Le brief Stitch reste une référence fonctionnelle ; cette demande autorise une nouvelle proposition visuelle dans Figma.
 
 ## Ressources
 
 - Source originale : https://github.com/mosescampos/campus-food-pantry
-- Nouveau dépôt privé : https://github.com/julesrumeautennis-cmd/campus-food-pantry-mobile
+- Nouveau dépôt : https://github.com/julesrumeautennis-cmd/campus-food-pantry-mobile
 - Nouveau Supabase : `mcbciclbmnjgtqoxbvzv` (us-east-2), URL publique https://mcbciclbmnjgtqoxbvzv.supabase.co
 - Dashboard : https://supabase.com/dashboard/project/mcbciclbmnjgtqoxbvzv
 - Stitch : https://stitch.google.com/projects/264145195589890532
 - Ne pas toucher au projet Supabase précédent `dlbsqcgnyfbqhiabalbg`.
-- Render : My Workspace, `tea-dbqe4fjncjis73a317mg`. Configuration proposée : `render.yaml`, un web service Docker `free` en Ohio. Aucune URL d'API hébergée n'a encore été obtenue.
+- Vercel : équipe `team_jU4K2dpV1sQDAwi2zeEc43fp`, configuration `vercel.json` à la racine, services `web` et `api`, région `cle1`. Aucun projet pantry ni URL déployée n'a encore été créé. Aucun service Render n'avait été créé.
 
 ## Invariants à préserver
 

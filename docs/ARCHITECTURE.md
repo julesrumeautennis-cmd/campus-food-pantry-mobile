@@ -66,7 +66,7 @@ Le retrait des produits expirés supprime les objets de l'inventaire Java comme 
 
 ## Contrat HTTP
 
-Toutes les routes `/api/v1` nécessitent `Authorization: Bearer <access_token>`. Les routes `/admin` exigent en plus l'UUID administrateur. `/health` est public et indique seulement que le serveur HTTP répond. `/health/ready`, également public, vérifie l'accès PostgreSQL à `pantry.item_lots` sans exposer de données ; il retourne 503 si cet accès échoue. Render utilisera cette seconde route pour vérifier le déploiement.
+Toutes les routes `/api/v1` nécessitent `Authorization: Bearer <access_token>`. Les routes `/admin` exigent en plus l'UUID administrateur. `/health` est public et indique seulement que le serveur HTTP répond. `/health/ready`, également public, vérifie l'accès PostgreSQL à `pantry.item_lots` sans exposer de données ; il retourne 503 si cet accès échoue. La livraison Vercel vérifie cette route avant la promotion du déploiement.
 
 | Méthode et route | Action |
 |---|---|
@@ -89,7 +89,7 @@ Préfixer les routes du tableau par `/api/v1`. Réponses d'erreur : `{code,messa
 
 ## Interface et distribution
 
-L'hébergement retenu pour l'API est un web service Docker **Render Free**, région Ohio, via la connexion Render existante. Le Blueprint local ne déclare aucun autre service ; Auth et PostgreSQL restent dans Supabase. L'accès à l'espace Render est confirmé mais le service n'a pas encore été créé. Les paramètres et blocages sont dans `DEPLOYMENT_RENDER.md`. Le profil Spring `render` limite la mémoire et les connexions ; l'absence d'UUID admin interdit toutes les opérations administrateur.
+L'hébergement retenu est **Vercel Services** : un service web Expo et un service API Docker Java dans le même projet, région `cle1`. Cette offre est en bêta ; aucun déploiement réel n'est encore validé. `vercel.json` dirige `/api/*` et `/health*` vers Java, puis les autres chemins vers l'interface. Le navigateur appelle l'API avec des chemins relatifs ; iOS et Android utilisent l'origine HTTPS explicite du projet. Auth et PostgreSQL restent chez Supabase. Le profil Spring `vercel` gère le port, les en-têtes HTTPS transmis, l'arrêt propre et trois connexions JDBC maximum par instance. Les paramètres et prérequis sont dans `DEPLOYMENT_VERCEL.md`. Sans UUID admin vérifié, toutes les opérations administrateur restent interdites.
 
 Écrans membres : connexion, inscription, confirmation email, récupération de mot de passe, catalogue, recherche, filtres, fiche, panier, récapitulatif, résultat, historique, profil. Écrans administrateur : file, décision motivée, inventaire, ajout, réapprovisionnement, retrait des expirés, rapport et inspections. Le panier reste local et se vide au changement de compte.
 

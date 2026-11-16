@@ -10,7 +10,7 @@ CST250 app: Java Spring Boot, Supabase Auth/PostgreSQL, and React Native/Expo. O
 | mobile/ | Expo app and TypeScript screens |
 | legacy-console/ | Original course program and regression tests, preserved byte-for-byte |
 | .github/ | PR validation, gated deployment and main-branch ruleset |
-| scripts/ | Local PowerShell launch and domain checks |
+| scripts/ | Local launch, domain checks, container and deployment smoke checks |
 | docs/ | Architecture, code reuse, deployment and verified status |
 
 Generated bundles, dependencies, local caches and credentials are ignored. Never commit .env, database passwords or privileged Supabase keys.
@@ -46,7 +46,7 @@ npm start
 
 Use Expo Go on a phone, or npm run web in a browser. A phone cannot reach the PC API through localhost: use a reachable LAN address or deployed HTTPS API. An Expo tunnel does not also expose Java. TestFlight requires a separate signed native build and Apple configuration.
 
-Run npm run build:web for a static web bundle. Configure the API's CORS_ORIGINS with the exact web origin. Supabase email delivery and allowed redirect URLs must be configured before testing signup and password recovery end to end.
+Run npm run build:web for a static web bundle. On Vercel, omit EXPO_PUBLIC_API_URL: the web app calls the Java service on the same origin. Separate web hosting needs an explicit API URL and its exact origin in CORS_ORIGINS. Supabase email delivery and allowed redirect URLs must be configured before testing signup and password recovery end to end.
 
 ## Tests and pull requests
 
@@ -56,12 +56,12 @@ cd backend
 mvn -B -ntp verify
 ```
 
-Every PR to main runs original console tests, Java/Spring tests and Docker build, SQL checks on isolated PostgreSQL, TypeScript, Expo dependency checks, and iOS/Android/web JavaScript bundling. The aggregate check is **CI passed**. Bundling is not a signed native build or a device test.
+Every PR to main runs original console tests, Java/Spring tests and Docker build, container HTTP checks against isolated PostgreSQL, SQL constraints, TypeScript, Expo dependency checks, web/native API configuration tests, iOS/Android/web JavaScript bundling, and Vercel configuration schema validation. The aggregate check is **CI passed**. Bundling is not a signed native build or a device test.
 
 [CI/CD setup](docs/CI_CD.md) explains mandatory PR checks and deployment configuration. Committing a workflow or ruleset file alone does not protect main.
 
 ## Deployment and status
 
-render.yaml declares one free Java Docker service. Render auto-deploy stays off; the GitHub deployment job is enabled only after its protected secret and repository variable are configured. It runs only for a validated push to main, never for a PR.
+vercel.json declares the Expo web service and Java Docker API service under one origin. Supabase remains responsible for Auth and PostgreSQL. Vercel Services/container hosting is beta. Git deployment is disabled; the GitHub job builds, stages, smoke-tests and promotes only a validated, protected main commit after the Vercel project and protected credentials have been configured. No cloud deployment has been performed yet.
 
-Read [Render setup](docs/DEPLOYMENT_RENDER.md), [verified status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), [course-code reuse](docs/REUSE.md), and [CONTEXT.md](CONTEXT.md) before changing product decisions.
+Read [Vercel setup](docs/DEPLOYMENT_VERCEL.md), [verified status](docs/STATUS.md), [architecture](docs/ARCHITECTURE.md), [course-code reuse](docs/REUSE.md), and [CONTEXT.md](CONTEXT.md) before changing product decisions.
