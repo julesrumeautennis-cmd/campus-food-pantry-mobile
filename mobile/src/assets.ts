@@ -1,0 +1,2 @@
+// Product illustration supplied in the user's Google Stitch export; not a stock photograph guarantee.
+export const stitchRiceImage = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAXASTkZEB_Ywv1zWNuIs8iXoXHlmkmCaHJ2OY2FcxZkPdK6c-iI7E5GDM5_qE7kUXrYv4fBHmFR4f5lijtZ2RVQHm3UyRoxeJaur_5L4QnKZSgM52bkWT6XX9bMagqv7ns2lKTd55Tjmw4GpD8EuZ9pQLSPQ3jhCiulVy_6mZr3Ze7VfXZ0-TDg-VQ-shKUqBqcDwFH98rM3q96j6ma7MmIYb1gmgMYU8KxXjE8g';

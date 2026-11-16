@@ -1,0 +1,30 @@
+# One free Java web service. Supabase remains the database/Auth provider.
+# No Render database, disk, worker, cron job or paid instance is declared.
+services:
+  - type: web
+    name: campus-food-pantry-api
+    runtime: docker
+    plan: free
+    region: ohio
+    repo: https://github.com/julesrumeautennis-cmd/campus-food-pantry-mobile
+    branch: main
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health/ready
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+      - key: SUPABASE_URL
+        value: https://mcbciclbmnjgtqoxbvzv.supabase.co
+      - key: RUN_MIGRATIONS
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+# ADMIN_USER_ID and CORS_ORIGINS are optional manual environment settings.
+# Do not overwrite them on a future Blueprint sync. See docs/DEPLOYMENT_RENDER.md.

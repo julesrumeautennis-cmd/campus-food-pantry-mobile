@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Campus Food Pantry",
+    "slug": "campus-food-pantry",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "campuspantry",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true },
+    "web": { "bundler": "metro", "output": "single", "name": "Campus Food Pantry" },
+    "experiments": { "typedRoutes": false }
+  }
+}
