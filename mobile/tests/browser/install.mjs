@@ -5,7 +5,7 @@ import { chromium } from 'playwright-core';
 const web = 'http://127.0.0.1:4187';
 
 test('the exported web app offers a standalone launch and usable phone icons', async t => {
-  const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN || 'google-chrome' });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN });
   t.after(() => browser.close());
   const page = await browser.newPage();
   await page.goto(web);

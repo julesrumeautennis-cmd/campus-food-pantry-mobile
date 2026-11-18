@@ -41,7 +41,7 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   const { server, session } = makeIssuer();
   server.listen(4188, '127.0.0.1'); await once(server, 'listening');
   t.after(() => new Promise(resolve => server.close(resolve)));
-  const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN || 'google-chrome', headless: true });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN, headless: true });
   t.after(() => browser.close());
   await mkdir(captures, { recursive: true });
   const jsErrors = [];

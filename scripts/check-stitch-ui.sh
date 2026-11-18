@@ -38,4 +38,12 @@ for _ in {1..45}; do
   sleep 1
 done
 curl -fsS --max-time 3 http://127.0.0.1:4189/health/ready >/dev/null || { tail -40 "$screens/java.log"; exit 1; }
-node --test mobile/tests/browser/*.mjs
+if [[ -n "${PANTRY_BROWSER_IMAGE:-}" ]]; then
+  # Use the browsers and system libraries matching the locked Playwright version.
+  # Host networking lets the isolated test read the local Java, web and JWKS fixtures.
+  docker run --rm --init --network host --shm-size=512m -e PANTRY_TEST_WEBKIT=1 \
+    -v "$PWD:/pantry:ro" -v "$PWD/$screens:/pantry/$screens" -w /pantry \
+    "$PANTRY_BROWSER_IMAGE" node --test mobile/tests/browser/*.mjs
+else
+  CHROME_BIN="${CHROME_BIN:-google-chrome}" node --test mobile/tests/browser/*.mjs
+fi
