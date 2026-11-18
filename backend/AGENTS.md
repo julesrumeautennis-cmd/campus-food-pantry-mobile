@@ -43,3 +43,20 @@ SQL
 ```
 
 The final SQL statement reports the constraint and table-access checks. Supabase Auth configuration, JDBC credentials and role assignment on a hosted instance need separate evidence. Real migrations require a reviewed deployment plan.
+
+## Reproduce the concurrent decision on Linux
+
+Run from the root with Docker, Maven, JDK 21, curl, Python 3 and psql. This mirrors the Java job. Ports 5432 and 9090 must be available. The smoke script creates the schema and runtime role in the disposable database, so start with a fresh container.
+
+```bash
+(
+  set -eu
+  export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=pantry_test PGPASSWORD=ci-only-password
+  db=$(docker run -d --rm -p 127.0.0.1:5432:5432 -e POSTGRES_PASSWORD="$PGPASSWORD" -e POSTGRES_DB="$PGDATABASE" postgres:17)
+  trap 'docker stop "$db" >/dev/null' EXIT
+  docker build -t campus-pantry-api:ci backend
+  for attempt in {1..45}; do pg_isready >/dev/null && break; sleep 1; done
+  bash scripts/check-api.sh
+  mvn -f backend/pom.xml -B -ntp -Dtest=ApprovalConcurrencyIT test
+)
+```
