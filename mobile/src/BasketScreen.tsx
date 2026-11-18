@@ -19,7 +19,7 @@ export function Basket({ me, cart, items, review, valid, onChange, onClear }: {
     {confirmClear && <View style={s.card}><Text style={s.subtitle}>Remove every item from this basket?</Text>
       <View style={s.rowBetween}><Button title="Keep items" secondary onPress={() => setConfirmClear(false)} />
         <Button title="Clear basket" danger onPress={() => { onClear(); setConfirmClear(false); }} /></View></View>}
-    <Quota me={me} selected={total} />
+    <Quota me={me} />
     {!lines.length ? <Empty title="Your basket is empty" detail="Choose an item from the shelves to start a request." /> : <>
       <View style={s.shelf}>
         <View style={styles.section}><Text style={s.emphasis}>{review ? 'Requested items' : 'Selected items'} ({lines.length})</Text></View>
@@ -37,10 +37,9 @@ export function Basket({ me, cart, items, review, valid, onChange, onClear }: {
           </View>;
         })}
       </View>
-      <View style={s.card}><View style={s.rowBetween}><Text style={s.subtitle}>Total units requested</Text><Text style={s.title}>{total}</Text></View>
-        <Text style={s.small}>If approved, this request uses {units(total)} of your weekly allowance.</Text></View>
+      <View style={s.rowBetween}><Text style={s.subtitle}>Total</Text><Text style={s.subtitle}>{units(total)}</Text></View>
       {!valid && <Notice error text="Stock or your allowance has changed. Edit your basket before submitting." />}
-      {review && <Notice text="Submitting sends your request to the pantry team. Stock and weekly allowance are deducted only at approval." />}
+      {review && <Notice text="Your allowance updates when the pantry approves your request." />}
     </>}
   </View>;
 }
@@ -49,10 +48,9 @@ export function SubmissionResult({ request, me }: { request: PantryRequest; me: 
   const pending = request.status === 'PENDING';
   return <View style={s.stack}>
     <View style={styles.confirmation}><View style={styles.stamp}><Icon name="check" color={colors.white} size={32} /></View>
-      <Heading title={pending ? 'Request submitted' : 'Request received'} description={pending ? 'The Roosevelt pantry team will review your request in arrival order.' : 'The pantry team has already recorded a decision for this request.'} />
+      <Heading title={pending ? 'Request submitted' : 'Request received'} />
     </View>
     <RequestCard request={request} />
-    {pending && <Notice text="Your request is pending. Your stock selection and weekly allowance have not been deducted." />}
     <Quota me={me} />
   </View>;
 }

@@ -90,7 +90,7 @@ jobs:
 
   mobile:
     name: Expo checks and bundles
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -139,7 +139,7 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: ci-only-password
           PGDATABASE: pantry_ui_test
-          CHROME_BIN: /usr/bin/google-chrome
+          PANTRY_BROWSER_IMAGE: mcr.microsoft.com/playwright:v1.58.2-noble
       - name: Save verified browser views
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -32,7 +32,7 @@ export function Reveal({ children, event, count = false, style, testID }: React.
     if (!allowed) { progress.setValue(1); return; }
     progress.setValue(0);
     const animation = Animated.timing(progress, {
-      toValue: 1, duration: count ? 150 : 190, easing: Easing.out(Easing.cubic),
+      toValue: 1, duration: count ? 150 : 225, easing: Easing.out(Easing.cubic),
       useNativeDriver: Platform.OS !== 'web', isInteraction: false,
     });
     animation.start();
@@ -40,6 +40,6 @@ export function Reveal({ children, event, count = false, style, testID }: React.
   }, [allowed, count, event, progress]);
   const transform = count
     ? [{ scale: progress.interpolate({ inputRange: [0, 0.42, 1], outputRange: [1, 1.12, 1] }) }]
-    : [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [7, 0] }) }];
+    : [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }];
   return <Animated.View testID={testID} style={[style, { opacity: count ? 1 : progress, transform }]}>{children}</Animated.View>;
 }

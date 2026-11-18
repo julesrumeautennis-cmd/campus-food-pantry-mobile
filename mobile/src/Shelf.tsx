@@ -4,7 +4,7 @@ import { api } from './api';
 import { lineLimit, units } from './basket';
 import { Reveal } from './motion';
 import type { Cart, Item, Me } from './types';
-import { Badge, Button, colors, Empty, Icon, IconButton, Notice, ProductTile, Quota, s, Stepper } from './ui';
+import { Badge, Button, colors, Empty, Heading, Icon, IconButton, Notice, ProductTile, Quota, s, Stepper } from './ui';
 
 export type Filters = { search: string; category: '' | Item['category']; sort: 'id' | 'name' };
 export const defaultFilters: Filters = { search: '', category: '', sort: 'id' };
@@ -44,9 +44,10 @@ export function Shelf({ items, me, cart, filters, onFilter, onOpen, onAdd, onRef
 }) {
   const { rows, loading, error, retry } = useShelf(items, filters);
   return <View style={s.stack}>
+    <Heading title="Browse pantry" />
     <Quota me={me} />
     <View style={styles.search}>
-      <Icon name="search" /><TextInput accessibilityLabel="Search by name or lot ID" placeholder="Search by name or lot ID…"
+      <Icon name="search" /><TextInput accessibilityLabel="Search by name or lot ID" placeholder="Search items or lot ID"
         placeholderTextColor={colors.muted} style={styles.searchInput} value={filters.search} onChangeText={search => onFilter({ ...filters, search })}
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" />
       {filters.search.length > 0 ? <IconButton name="close" label="Clear search" onPress={() => onFilter({ ...filters, search: '' })} />
@@ -61,7 +62,7 @@ export function Shelf({ items, me, cart, filters, onFilter, onOpen, onAdd, onRef
           return <Pressable key={category} accessibilityRole="button" accessibilityLabel={`${label}, ${count} lots`}
             accessibilityState={{ selected: active }} onPress={() => onFilter({ ...filters, category })}
             style={[s.chip, styles.filter, active && s.chipActive]}>
-            <Text style={[s.chipText, active && styles.white]}>{label} {count}</Text>
+            <Text style={[s.chipText, active && styles.white]}>{label}</Text>
           </Pressable>;
         })}
       </ScrollView>
@@ -83,7 +84,7 @@ export function Shelf({ items, me, cart, filters, onFilter, onOpen, onAdd, onRef
             <View style={unavailable && { opacity: 0.55 }}><ProductTile item={item} /></View>
             <View style={[s.grow, s.tight]}>
               <View style={styles.nameRow}><Text style={s.subtitle}>{item.name}</Text><Text style={styles.lot}>Lot #{item.itemId}</Text></View>
-              <Text style={s.small}>{item.category} · 1 unit each</Text><Badge text={item.availability} quantity={item.quantity} />
+              <Badge text={item.availability} quantity={item.quantity} />
             </View>
           </Pressable>
           <ShelfAdd item={item} quantity={quantity} disabled={quantity >= limit} unavailable={unavailable} onAdd={onAdd} />
@@ -110,16 +111,14 @@ export function Detail({ item, me, inBasket, availableToAdd, amount, onAmount }:
 }) {
   return <View style={s.stack}>
     <View style={s.card}>
-      <View><ProductTile item={item} large /><View style={styles.heroTag}><Icon name={item.category === 'Food' ? 'eco' : 'soap'} size={14} />
-        <Text style={s.emphasis}>{item.category === 'Food' ? 'Pantry staple' : 'Daily care'}</Text></View></View>
+      <ProductTile item={item} large />
       <Text accessibilityRole="header" style={s.title}>{item.name}</Text>
-      <Text style={s.body}>Lot #{item.itemId} · {item.category} · 1 unit each</Text>
+      <Text style={s.body}>{item.category} · Lot #{item.itemId}</Text>
       {item.expirationDate && <View style={s.inline}><Icon name="event" size={16} /><Text style={s.small}>Best before {item.expirationDate}</Text></View>}
     </View>
-    <View style={[s.card, styles.tinted]}><Badge text={item.availability} quantity={item.quantity} />
-      <Text style={s.small}>The pantry team checks the lot and your allowance again when it reviews your request.</Text></View>
+    <Badge text={item.availability} quantity={item.quantity} />
     <Quota me={me} />
-    <View style={s.card}><View style={s.rowBetween}><View><Text style={s.subtitle}>Select quantity</Text><Text style={s.small}>{units(inBasket)} already in basket</Text></View>
+    <View style={s.card}><View style={s.rowBetween}><View><Text style={s.subtitle}>Select quantity</Text>{inBasket > 0 && <Text style={s.small}>{units(inBasket)} in basket</Text>}</View>
       <Stepper name={item.name} value={amount} min={availableToAdd ? 1 : 0} max={availableToAdd} onChange={onAmount} /></View>
       {availableToAdd === 0 && <Text style={s.small}>No more units can be added with the current stock and allowance.</Text>}
     </View>
@@ -127,18 +126,16 @@ export function Detail({ item, me, inBasket, availableToAdd, amount, onAmount }:
 }
 
 const styles = StyleSheet.create({
-  search: { flexDirection: 'row', alignItems: 'center', paddingLeft: 12, paddingRight: 4, gap: 6, minHeight: 48, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: 7 },
+  search: { flexDirection: 'row', alignItems: 'center', paddingLeft: 12, paddingRight: 4, gap: 6, minHeight: 48, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: 14 },
   searchInput: { flex: 1, minWidth: 0, minHeight: 46, fontSize: 16, color: colors.ink, fontFamily: 'Manrope' },
   filters: { flexDirection: 'row', alignItems: 'center', gap: 6 }, filterTrack: { alignItems: 'center', gap: 5 },
   filter: { paddingHorizontal: 9 }, white: { color: colors.white },
   sort: { flexDirection: 'row', minHeight: 44, alignItems: 'center', gap: 2, paddingHorizontal: 3 },
-  shelfRow: { padding: 11, flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 88 },
+  shelfRow: { padding: 11, flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 76 },
   divider: { borderTopWidth: 1, borderTopColor: colors.line },
   product: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 11 },
   nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 5 },
   lot: { fontFamily: 'ManropeSemiBold', color: colors.muted, fontSize: 11 },
   add: { backgroundColor: colors.green, borderRadius: 12 }, quiet: { backgroundColor: colors.mint },
   count: { color: colors.white, fontFamily: 'ManropeBold', fontSize: 17, textAlign: 'center' },
-  heroTag: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.white, borderRadius: 4, padding: 6 },
-  tinted: { backgroundColor: colors.mint },
 });

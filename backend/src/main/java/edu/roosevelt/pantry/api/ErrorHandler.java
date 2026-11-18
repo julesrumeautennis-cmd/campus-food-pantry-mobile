@@ -9,6 +9,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 @RestControllerAdvice
 public class ErrorHandler {
@@ -27,6 +29,12 @@ public class ErrorHandler {
     ResponseEntity<?> badInput(Exception e) { return ResponseEntity.badRequest().body(body("INVALID_INPUT","Invalid request data.",Map.of())); }
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<?> conflict(Exception e) { return ResponseEntity.status(409).body(body("CONFLICT","This operation conflicts with existing data. Refresh and try again.",Map.of())); }
+    @ExceptionHandler({CannotCreateTransactionException.class, CannotGetJdbcConnectionException.class})
+    ResponseEntity<?> unavailable(Exception e) {
+        LoggerFactory.getLogger(ErrorHandler.class).warn("Database connection unavailable ({})", e.getClass().getSimpleName());
+        return ResponseEntity.status(503).header("Retry-After", "2")
+            .body(body("SERVICE_BUSY", "The pantry is temporarily unavailable. Please try again shortly.", Map.of()));
+    }
     @ExceptionHandler(Exception.class)
     ResponseEntity<?> unexpected(Exception e) {
         LoggerFactory.getLogger(ErrorHandler.class).error("Request failed: {}",e.getClass().getSimpleName());

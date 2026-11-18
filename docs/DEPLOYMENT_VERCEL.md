@@ -6,7 +6,7 @@ Jules chose Vercel instead of Render on 2026-11-16. The Java backend stays Java:
 
 `vercel.json` routes `/api/*` and `/health` (including `/health/ready`) to the Java service, preserving the path. Other paths go to the Expo web service, whose fallback serves `index.html`. Region `cle1` keeps the API near the existing Supabase us-east-2 project. The browser uses relative API requests. Native Expo builds need the project's actual HTTPS origin in `EXPO_PUBLIC_API_URL`.
 
-The Dockerfile uses Java 21, runs Maven verify, starts as a non-root user, and activates the `vercel` Spring profile. It binds to `0.0.0.0`, supports forwarded HTTPS origins, graceful termination, and at most three JDBC connections per instance. Durable application state and transaction locks stay in PostgreSQL, not in the container filesystem or memory.
+The Dockerfile uses Java 21, runs Maven verify, starts as a non-root user, and activates the `vercel` Spring profile. It binds to `0.0.0.0`, supports forwarded HTTPS origins, graceful termination, and one JDBC connection per instance through the Supabase transaction pooler. Durable application state and transaction locks stay in PostgreSQL, not in the container filesystem or memory.
 
 ## Project configuration
 
@@ -20,7 +20,7 @@ Set production variables in Vercel project settings. Only the `EXPO_PUBLIC_*` va
 | SPRING_PROFILES_ACTIVE | `vercel` (also the image default) |
 | SUPABASE_URL | `https://mcbciclbmnjgtqoxbvzv.supabase.co` |
 | RUN_MIGRATIONS | `false` for the existing schema |
-| DATABASE_URL | Actual Supabase session-pooler JDBC endpoint, with `sslmode=require` |
+| DATABASE_URL | Supabase transaction-pooler JDBC endpoint on port 6543 with `sslmode=require` |
 | DATABASE_USERNAME | Actual pooler login form for the limited `pantry_app` role |
 | DATABASE_PASSWORD | Existing password, transferred only to protected server settings |
 | ADMIN_USER_ID | Jules's verified Supabase Auth UUID; blank grants admin access to nobody |
@@ -30,7 +30,7 @@ Set production variables in Vercel project settings. Only the `EXPO_PUBLIC_*` va
 | EXPO_PUBLIC_API_URL | Omit for Vercel web; set to the actual project HTTPS origin for native builds |
 | EXPO_PUBLIC_AUTH_REDIRECT_URL | Final web origin registered in Supabase; native builds use their registered app redirect |
 
-`pantry_app` already exists and inherits `pantry_backend` with limited privileges. Its credential remains in Supabase Vault under the historical name `pantry_render_database_password`; the name does not create a Render dependency. Do not rerun `backend/db/provision-runtime.sql` or rotate the credential just to rename it. Read the actual endpoint and username from Supabase Connect rather than guessing a pooler hostname. Keep migrations separate from runtime startup. Check the account's aggregate database connection limit when increasing the number of container instances.
+`pantry_app` already exists and inherits `pantry_backend` with limited privileges. Its credential remains in Supabase Vault under the historical name `pantry_render_database_password`; the name does not create a Render dependency. Do not rerun `backend/db/provision-runtime.sql` or rotate the credential just to rename it. Read the actual endpoint and username from Supabase Connect rather than guessing a pooler hostname. Keep migrations separate from runtime startup. The Vercel profile disables JDBC server-side prepared statements for transaction pooling. The runtime role has a five-connection cap, so avoid session pooling for elastic containers.
 
 ## Release sequence
 
