@@ -131,6 +131,8 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
+      - name: Install WebKit for the iPhone browser check
+        run: npx --no-install playwright-core install --with-deps webkit
       - name: Exercise member and FIFO staff screens against Java and PostgreSQL
         working-directory: .
         run: bash scripts/check-stitch-ui.sh
@@ -140,6 +142,7 @@ jobs:
           PGPASSWORD: ci-only-password
           PGDATABASE: pantry_ui_test
           CHROME_BIN: /usr/bin/google-chrome
+          PANTRY_TEST_WEBKIT: '1'
       - name: Save verified browser views
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

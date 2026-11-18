@@ -7,7 +7,7 @@ import { once } from 'node:events';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { chromium } from 'playwright-core';
+import { chromium, devices, webkit } from 'playwright-core';
 import example from '../../../backend/src/test/resources/contracts/request.json' with { type: 'json' };
 
 const web = 'http://127.0.0.1:4187';
@@ -46,8 +46,8 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   await mkdir(captures, { recursive: true });
   const jsErrors = [];
   const external = [];
-  async function signIn(id, email, reducedMotion) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion, hasTouch: true });
+  async function signIn(id, email, reducedMotion, engine = browser, device = {}) {
+    const context = await engine.newContext({ viewport: { width: 390, height: 844 }, reducedMotion, hasTouch: true, ...device });
     const page = await context.newPage();
     page.setDefaultTimeout(12_000);
     page.on('pageerror', error => jsErrors.push(error.message));
@@ -89,7 +89,7 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
     const bar = await page.getByRole('tablist').boundingBox();
     const viewport = page.viewportSize();
     assert.ok(bar && bar.x >= 10 && bar.x + bar.width <= viewport.width - 10 && bar.y + bar.height <= viewport.height - 8, name + ' needs an inset dock');
-    const glass = await page.getByRole('tablist').evaluate(node => getComputedStyle(node).backdropFilter);
+    const glass = await page.getByRole('tablist').evaluate(node => getComputedStyle(node).backdropFilter || getComputedStyle(node).webkitBackdropFilter);
     assert.ok(glass.includes('blur'), name + ' needs a glass backdrop');
     await page.screenshot({ path: join(captures, name + '.png'), animations: 'disabled' });
   }
@@ -184,7 +184,7 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   for (const section of ['Inventory', 'Reports', 'Inspections', 'Incoming requests']) {
     await staff.getByRole('button', { name: /^Admin sections,/ }).click();
     await staff.getByRole('button', { name: section, exact: true }).click();
-    await staff.getByRole('heading', { name: section }).waitFor();
+    await staff.getByRole('button', { name: 'Admin sections, ' + section }).waitFor();
   }
   await staff.getByText('First in line', { exact: true }).waitFor();
   assert.equal(await staff.getByRole('button', { name: 'Approve request' }).count(), 1);
@@ -213,6 +213,20 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   for (const width of [375, 430]) {
     await page.setViewportSize({ width, height: 852 });
     await snapshot(page, 'browse-' + width);
+  }
+  if (process.env.PANTRY_TEST_WEBKIT === '1') {
+    const safari = await webkit.launch();
+    t.after(() => safari.close());
+    const { page: phone } = await signIn(memberId, 'member@example.test', 'no-preference', safari, devices['iPhone 13']);
+    await phone.getByRole('button', { name: /^View Rice, lot 101/ }).waitFor();
+    assert.equal(await phone.getByRole('tab', { name: 'Admin' }).count(), 0);
+    await snapshot(phone, 'iphone-webkit-browse');
+    await phone.getByRole('button', { name: 'View basket, 0 units' }).tap();
+    await phone.getByText('Your basket is empty').waitFor();
+    await phone.getByRole('tab', { name: 'Profile' }).tap();
+    await phone.getByRole('button', { name: 'Student ID' }).tap();
+    await phone.getByText(memberId, { exact: true }).waitFor();
+    await snapshot(phone, 'iphone-webkit-profile');
   }
   assert.deepEqual(jsErrors, []);
   assert.deepEqual(external, []);

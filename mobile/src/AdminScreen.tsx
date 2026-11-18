@@ -93,7 +93,7 @@ export function AdminScreen({ panel, onPanel, refreshKey, onBusy, onDenied }: {
       <IconButton label="Refresh" name="refresh" onPress={() => void load()} disabled={busy || loading} />
     </View>
     {menuOpen && <View style={s.card}>{(Object.keys(panelNames) as StaffPanel[]).map(key =>
-      <Pressable accessibilityRole="button" accessibilityState={{ selected: key === panel }} key={key} style={s.disclosureRow}
+      <Pressable accessibilityRole="button" accessibilityLabel={panelNames[key]} accessibilityState={{ selected: key === panel }} key={key} style={s.disclosureRow}
         onPress={() => { setMenuOpen(false); onPanel(key); }}>
         <Text style={[s.label, s.grow]}>{panelNames[key]}</Text><Icon name={key === panel ? 'check' : 'chevron-right'} />
       </Pressable>)}</View>}
