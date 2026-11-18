@@ -1,0 +1,261 @@
+name: CI / CD
+
+on:
+  pull_request:
+    branches: [main, setup/app-ci-cd]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    name: Java and Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pantry_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pantry_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: pantry_test
+      PGPASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Original console regression tests
+        run: |
+          mkdir -p .local/legacy-classes
+          javac -encoding UTF-8 -d .local/legacy-classes legacy-console/*.java legacy-console/tests/RegressionTests.java
+          java -cp .local/legacy-classes RegressionTests
+      - name: Build production image and verify Java producer contract
+        run: docker build --tag campus-pantry-api:ci backend
+      - name: Start Vercel profile and verify HTTP behavior
+        run: bash scripts/check-api.sh
+      - name: Verify concurrent approval on isolated PostgreSQL
+        working-directory: backend
+        run: mvn -B -ntp -Dtest=ApprovalConcurrencyIT test
+
+  database:
+    name: PostgreSQL constraints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pantry_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pantry_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: pantry_test
+      PGPASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Prepare isolated Auth schema fixture
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE SCHEMA auth;
+          CREATE TABLE auth.users (id uuid PRIMARY KEY);
+          SQL
+      - name: Apply migration, demo fixtures and constraint checks
+        run: |
+          psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/db/migration/V1__pantry_schema.sql
+          psql -v ON_ERROR_STOP=1 -f backend/db/demo-seed.sql
+          psql -v ON_ERROR_STOP=1 -f backend/db/verify-constraints.sql
+
+  mobile:
+    name: Expo checks and bundles
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pantry_ui_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pantry_ui_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run check:expo
+      - name: Test consumer contract and web/native API configuration
+        run: node --experimental-strip-types --test tests/*.test.mjs
+      - name: Bundle iOS, Android and web
+        run: npx expo export --platform all
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:4188
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-local-only
+          EXPO_PUBLIC_API_URL: http://127.0.0.1:4189
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Exercise member and FIFO staff screens against Java and PostgreSQL
+        working-directory: .
+        run: bash scripts/check-stitch-ui.sh
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: ci-only-password
+          PGDATABASE: pantry_ui_test
+          CHROME_BIN: /usr/bin/google-chrome
+      - name: Save verified browser views
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stitch-ui-browser
+          path: .local/stitch-ui/*.png
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+  vercel:
+    name: Vercel configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Validate against Vercel's published configuration schema
+        run: |
+          curl --fail --silent --show-error --max-time 30 https://openapi.vercel.sh/vercel.json --output /tmp/vercel-schema.json
+          python3 -m venv /tmp/vercel-schema-check
+          /tmp/vercel-schema-check/bin/pip install --disable-pip-version-check jsonschema==4.25.1
+          # The published schema declares Draft 4 but includes Draft 7 keywords and boolean subschemas.
+          # Validate the complete schema and configuration with Draft 7 so those constraints are enforced.
+          /tmp/vercel-schema-check/bin/python - <<'PY'
+          import json
+          from jsonschema import Draft7Validator
+          schema = json.load(open('/tmp/vercel-schema.json'))
+          Draft7Validator.check_schema(schema)
+          errors = list(Draft7Validator(schema).iter_errors(json.load(open('vercel.json'))))
+          for error in errors:
+              print(f'{error.json_path}: {error.message}')
+          if errors:
+              raise SystemExit(1)
+          print('Vercel configuration is valid')
+          PY
+
+  ci:
+    name: CI passed
+    if: ${{ always() }}
+    needs: [backend, database, mobile, vercel]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          BACKEND: ${{ needs.backend.result }}
+          DATABASE: ${{ needs.database.result }}
+          MOBILE: ${{ needs.mobile.result }}
+          VERCEL: ${{ needs.vercel.result }}
+        run: |
+          test "$BACKEND" = success
+          test "$DATABASE" = success
+          test "$MOBILE" = success
+          test "$VERCEL" = success
+
+  deploy:
+    name: Stage and promote validated main on Vercel
+    needs: ci
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VERCEL_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    concurrency:
+      group: vercel-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Verify release branch and install pinned CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.protected')" = true || { echo 'Protect main before enabling deployment.'; exit 1; }
+          current=$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')
+          test "$current" = "$GITHUB_SHA" || { echo 'Obsolete commit; refusing release.'; exit 1; }
+          npm install --global vercel@65.4.0
+      - name: Pull production settings
+        run: vercel pull --yes --environment=production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Build production services
+        run: vercel build --prod
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Stage without assigning production domains
+        id: stage
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          url=$(vercel deploy --prebuilt --prod --skip-domain)
+          DEPLOYMENT_URL="$url" node --input-type=module -e 'const v=process.env.DEPLOYMENT_URL;const u=new URL(v);if(u.protocol!=="https:"||u.origin!==v||!u.hostname.endsWith(".vercel.app"))process.exit(1);'
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+      - name: Verify staged web and Java API
+        run: node scripts/check-deployment.mjs
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - name: Promote only if the tested commit is still current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$GITHUB_SHA" || { echo 'A newer commit exists; refusing promotion.'; exit 1; }
+          vercel promote "$DEPLOYMENT_URL" --yes
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
