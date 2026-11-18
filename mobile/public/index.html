@@ -2,7 +2,7 @@
 <html lang="%LANG_ISO_CODE%">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>%WEB_TITLE%</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
@@ -14,6 +14,15 @@
       html, body { height: 100%; }
       body { margin: 0; overflow: hidden; }
       #root { display: flex; height: 100%; flex: 1; }
+      @supports (height: 100dvh) { #root { height: 100dvh; } }
+      @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+        #pantry-tabs {
+          background-color: rgba(255, 255, 255, .79);
+          -webkit-backdrop-filter: saturate(155%) blur(20px);
+          backdrop-filter: saturate(155%) blur(20px);
+        }
+      }
+      @media (prefers-reduced-transparency: reduce) { #pantry-tabs { background: white; } }
     </style>
   </head>
   <body>

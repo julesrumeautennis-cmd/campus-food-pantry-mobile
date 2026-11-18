@@ -1,5 +1,11 @@
 # Verified status
 
+## iPhone navigation and request history
+
+The authenticated app uses the role from Java, a header basket and a safe-area-aware floating tab bar. Member history is fetched on the Requests screen or when expanded in Profile. Staff views load their own data. The integration test exercises a failed history refresh, a member denied staff access, all four staff sections and the inset dock at multiple phone widths.
+
+The production logs recorded a connection-limit failure while serving personal history. The Vercel configuration uses one JDBC connection per container and is designed for Supavisor transaction mode. Personal history and queue errors have separate retry paths.
+
 ## Home-screen installation
 
 The Expo web build includes a standalone manifest, the Roosevelt vegetable-basket icon and iPhone home-screen metadata. The browser check reads the exported manifest through Chrome and opens each launcher image. The native iOS configuration uses the same artwork at 1024 × 1024 pixels. Device installation and a public production URL are still pending. See the [phone installation steps](../README.md#install-the-web-app-on-a-phone).

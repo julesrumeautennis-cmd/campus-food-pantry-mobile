@@ -86,17 +86,38 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
       requestAnimationFrame(sample);
     }));
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), name + ' overflows viewport');
+    const bar = await page.getByRole('tablist').boundingBox();
+    const viewport = page.viewportSize();
+    assert.ok(bar && bar.x >= 10 && bar.x + bar.width <= viewport.width - 10 && bar.y + bar.height <= viewport.height - 8, name + ' needs an inset dock');
+    const glass = await page.getByRole('tablist').evaluate(node => getComputedStyle(node).backdropFilter);
+    assert.ok(glass.includes('blur'), name + ' needs a glass backdrop');
     await page.screenshot({ path: join(captures, name + '.png'), animations: 'disabled' });
   }
   const member = await signIn(memberId, 'member@example.test', 'no-preference');
   const { page } = member;
   const click = label => page.getByRole('button', { name: label, exact: true }).click();
   const text = value => page.getByText(value, { exact: true });
-  const quota = count => page.getByText(count + ' of 5 approved units used', { exact: false }).first();
+  const quota = count => page.getByText((5 - count) + ' units left', { exact: true }).first();
 
   assert.equal(await page.getByRole('tab', { name: 'Admin' }).count(), 0);
   assert.equal((await fetch(api + '/admin/requests', { headers: { Authorization: 'Bearer ' + member.token } })).status, 403);
   await quota(0).waitFor();
+  // An unavailable personal history must not prevent browsing, opening the basket or retrying.
+  let historyReads = 0;
+  await page.route(api + '/requests/mine', async route => {
+    historyReads++;
+    await route.fulfill({ status: 503, json: { code: 'SERVICE_BUSY', message: 'Please retry.' },
+      headers: { 'Access-Control-Allow-Origin': web } });
+  });
+  await page.getByRole('tab', { name: 'Requests' }).click();
+  await page.getByRole('alert').filter({ hasText: 'request history' }).waitFor();
+  await page.getByRole('button', { name: 'View basket, 0 units' }).click();
+  await page.getByText('Your basket is empty').waitFor();
+  await page.getByRole('tab', { name: 'Browse' }).click();
+  await page.getByRole('button', { name: /^View Rice, lot 101/ }).waitFor();
+  assert.equal(await page.getByRole('alert').count(), 0);
+  assert.equal(historyReads, 1);
+  await page.unroute(api + '/requests/mine');
   await snapshot(page, '01-browse');
   assert.ok(await page.getByRole('button', { name: 'Add one Rolled Oats to basket' }).isDisabled());
   await page.getByRole('button', { name: /^Hygiene, / }).click();
@@ -110,11 +131,11 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   assert.ok(hero && hero.height > 170 && Math.abs(hero.width / hero.height - 1.65) < 0.05, 'detail photograph keeps its aspect ratio');
   await snapshot(page, '02-lot-detail');
   await click('Add 2 units to basket');
-  await text('2 units already in basket').waitFor();
-  await click('View basket');
-  await text('Total units requested').waitFor();
+  await text('2 units in basket').waitFor();
+  await page.getByRole('button', { name: /^View basket,/ }).click();
+  await text('Total').waitFor();
   await snapshot(page, '03-basket');
-  await click('Proceed to review request');
+  await click('Review request');
   await snapshot(page, '04-review');
 
   // Drop the first response after the server has committed, then retry the identical basket.
@@ -148,15 +169,23 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   await click('Clear search');
   await click('Add one Toothpaste to basket');
   await page.getByTestId('cart-flight').waitFor({ state: 'attached' });
-  await click('View basket'); await click('Proceed to review request'); await click('Submit request (1 unit)');
+  await page.getByRole('button', { name: /^View basket,/ }).click(); await click('Review request'); await click('Submit request (1 unit)');
   await text('Request submitted').waitFor(); await click('View my requests');
 
   const { page: staff } = await signIn(adminId, 'staff@example.test', 'reduce');
   await staff.getByRole('tab', { name: 'Profile' }).click();
-  await staff.getByText('Student ID', { exact: true }).waitFor();
+  await staff.getByRole('button', { name: 'Student ID' }).click();
   await staff.getByText(adminId, { exact: true }).waitFor();
-  await staff.getByRole('heading', { name: 'Request history' }).waitFor();
+  await staff.getByRole('button', { name: 'Request history' }).click();
+  await staff.getByText('No requests yet', { exact: true }).waitFor();
   await staff.getByRole('tab', { name: 'Admin' }).click();
+  await staff.getByText('First in line', { exact: true }).waitFor();
+  assert.equal(await staff.getByRole('tab', { name: 'Profile' }).count(), 1);
+  for (const section of ['Inventory', 'Reports', 'Inspections', 'Incoming requests']) {
+    await staff.getByRole('button', { name: /^Admin sections,/ }).click();
+    await staff.getByRole('button', { name: section, exact: true }).click();
+    await staff.getByRole('heading', { name: section }).waitFor();
+  }
   await staff.getByText('First in line', { exact: true }).waitFor();
   assert.equal(await staff.getByRole('button', { name: 'Approve request' }).count(), 1);
   await snapshot(staff, '06-admin-queue');
@@ -181,6 +210,10 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   await page.getByRole('tab', { name: 'Browse' }).click();
   await page.getByRole('button', { name: /^View Rice, lot 101/ }).waitFor();
   await snapshot(page, '08-narrow-browse');
+  for (const width of [375, 430]) {
+    await page.setViewportSize({ width, height: 852 });
+    await snapshot(page, 'browse-' + width);
+  }
   assert.deepEqual(jsErrors, []);
   assert.deepEqual(external, []);
 });

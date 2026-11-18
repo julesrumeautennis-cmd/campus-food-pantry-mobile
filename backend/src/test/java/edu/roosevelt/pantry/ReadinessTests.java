@@ -1,17 +1,35 @@
 package edu.roosevelt.pantry;
 
 import edu.roosevelt.pantry.api.ReadinessController;
+import edu.roosevelt.pantry.api.ErrorHandler;
+import edu.roosevelt.pantry.api.PantryController;
+import edu.roosevelt.pantry.service.PantryService;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.CannotCreateTransactionException;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ReadinessTests {
+    @Test void unavailableTransactionHasARetryableBusinessResponse() throws Exception {
+        var service = mock(PantryService.class);
+        when(service.items("", "", "name")).thenThrow(new CannotCreateTransactionException("private connection details"));
+        MockMvcBuilders.standaloneSetup(new PantryController(service)).setControllerAdvice(new ErrorHandler()).build()
+            .perform(get("/api/v1/items"))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(header().string("Retry-After", "2"))
+            .andExpect(jsonPath("$.code").value("SERVICE_BUSY"))
+            .andExpect(jsonPath("$.message").value("The pantry is temporarily unavailable. Please try again shortly."));
+    }
+
     @Test void emptyInventoryIsReadyWhenSchemaIsAccessible() {
         var db = mock(JdbcTemplate.class);
         when(db.query(any(PreparedStatementCreator.class), any(ResultSetExtractor.class))).thenReturn(null);

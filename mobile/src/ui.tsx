@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { brandMark, productPhoto } from './assets';
@@ -7,7 +7,7 @@ import type { Item, Me, PantryRequest } from './types';
 import { units } from './basket';
 
 export const colors = {
-  green: '#003525', forest: '#174d3a', ink: '#17211d', muted: '#4d5e55', background: '#f1fcf5',
+  green: '#003525', forest: '#174d3a', ink: '#17211d', muted: '#4d5e55', background: '#f6faf6',
   white: '#ffffff', mint: '#e5f1ea', line: '#d7e3da', gold: '#ffd569', amber: '#614a00',
   amberBg: '#fff2c9', red: '#8c2520', blush: '#fce6e3',
 };
@@ -16,15 +16,19 @@ export function Icon({ name, size = 20, color = colors.green }: { name: IconName
   return <MaterialIcons name={name} size={size} color={color} accessible={false} importantForAccessibility="no" />;
 }
 
-export function Brand({ subtitle, onBack, onProfile, trailing, disabled = false }: {
-  subtitle: string; onBack?: () => void; onProfile?: () => void; trailing?: React.ReactNode; disabled?: boolean;
+export function Brand({ onBack, onBasket, basketRef, basketUnits = 0, inBasket = false, disabled = false }: {
+  onBack?: () => void; onBasket?: () => void; basketRef?: React.RefObject<React.ComponentRef<typeof View> | null>; basketUnits?: number; inBasket?: boolean; disabled?: boolean;
 }) {
   return <View style={s.header}>
     {onBack && <IconButton name="arrow-back" label="Go back" onPress={onBack} disabled={disabled} />}
     <Image source={brandMark} accessible={false} style={s.seal} />
-    <View style={s.grow}><Text style={s.brand}>Campus Food Pantry</Text><Text style={s.small}>{subtitle}</Text></View>
-    {onProfile && <IconButton solid name="person-outline" label="Open profile" onPress={onProfile} disabled={disabled} />}
-    {trailing}
+    <View style={s.grow}><Text style={s.brand}>Campus Food Pantry</Text><Text style={s.school}>Roosevelt University</Text></View>
+    {onBasket && <Pressable ref={basketRef} accessibilityRole="button" accessibilityLabel={`View basket, ${units(basketUnits)}`}
+      accessibilityState={{ disabled: disabled || inBasket }} disabled={disabled || inBasket} onPress={onBasket}
+      style={({ pressed }) => [s.basketButton, pressed && s.pressed]}>
+      <Icon name="shopping-basket" color={colors.white} size={22} />
+      {basketUnits > 0 && <View style={s.basketCount}><Text style={s.basketCountText}>{basketUnits}</Text></View>}
+    </Pressable>}
   </View>;
 }
 
@@ -66,8 +70,19 @@ export function Notice({ text, error = false }: { text: string; error?: boolean 
     <Text style={[s.body, s.grow, error && { color: colors.red }]}>{text}</Text>
   </View>;
 }
-export function Empty({ title, detail }: { title: string; detail: string }) {
-  return <View style={s.card}><Text style={s.subtitle}>{title}</Text><Text style={s.body}>{detail}</Text></View>;
+export function Empty({ title, detail }: { title: string; detail?: string }) {
+  return <View style={s.card}><Text style={s.subtitle}>{title}</Text>{detail && <Text style={s.body}>{detail}</Text>}</View>;
+}
+
+export function Disclosure({ title, children }: React.PropsWithChildren<{ title: string }>) {
+  const [open, setOpen] = useState(false);
+  return <View style={s.disclosure}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ expanded: open }}
+      style={s.disclosureRow} onPress={() => setOpen(!open)}>
+      <Text style={[s.label, s.grow]}>{title}</Text><Icon name={open ? 'expand-less' : 'expand-more'} />
+    </Pressable>
+    {open && <View style={s.disclosureBody}>{children}</View>}
+  </View>;
 }
 
 const badges = {
@@ -88,14 +103,13 @@ export function Badge({ text, quantity }: { text: keyof typeof badges; quantity?
     <Text style={[s.badgeText, { color }]}>{caption}</Text></View>;
 }
 
-export function Quota({ me, selected = 0 }: { me: Me; selected?: number }) {
+export function Quota({ me }: { me: Me }) {
   const reset = new Date(`${me.resetsOn}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: me.timeZone });
   return <View style={s.card}>
-    <View style={s.rowBetween}><View style={s.inline}><Icon name="event-repeat" /><Text style={s.subtitle}>Weekly member quota</Text></View><Text style={s.tag}>Mon – Sun</Text></View>
+    <View style={s.rowBetween}><Text style={s.label}>Weekly allowance</Text><Text style={s.emphasis}>{units(me.remainingUnits)} left</Text></View>
     <View style={s.segments}>{Array.from({ length: me.weeklyLimit }, (_, i) => <View key={i}
       style={[s.segment, i < me.approvedUnits && { backgroundColor: colors.forest }]} />)}</View>
-    <Text style={s.small}><Text style={s.emphasis}>{me.approvedUnits} of {me.weeklyLimit} approved units used</Text>{' · '}Resets {reset} (Chicago)</Text>
-    {selected > 0 && <Text style={s.small}>{units(selected)} in your basket · {units(me.remainingUnits)} available before approval</Text>}
+    <Text style={s.small}>Resets {reset} · Chicago</Text>
   </View>;
 }
 
@@ -120,8 +134,8 @@ export function ProductTile({ item, large = false }: { item: Pick<Item, 'name' |
 export function RequestCard({ request }: { request: PantryRequest }) {
   return <View style={s.card}>
     <View style={s.rowBetween}><Text style={s.subtitle}>Request #{request.id}</Text><Badge text={request.status} /></View>
-    <Text style={s.small}>{new Date(request.submittedAt).toLocaleString()} · {units(request.totalUnits)}</Text>
-    {request.lines.map(line => <View key={line.itemId} style={s.rowBetween}><Text style={[s.body, s.grow]}>{line.name} · Lot #{line.itemId}</Text><Text style={s.emphasis}>× {line.quantity}</Text></View>)}
+    <Text style={s.small}>{new Date(request.submittedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {units(request.totalUnits)}</Text>
+    <Disclosure title="Item details">{request.lines.map(line => <View key={line.itemId} style={s.rowBetween}><Text style={[s.body, s.grow]}>{line.name} · #{line.itemId}</Text><Text style={s.emphasis}>× {line.quantity}</Text></View>)}</Disclosure>
     {request.decisionReason && <Notice text={request.decisionReason} error={request.status === 'DECLINED'} />}
   </View>;
 }
@@ -129,9 +143,13 @@ export function RequestCard({ request }: { request: PantryRequest }) {
 export const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, width: '100%', maxWidth: 640, alignSelf: 'center' },
-  content: { padding: 16, gap: 12, paddingBottom: 24 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingVertical: 9, borderBottomWidth: 1, borderColor: colors.line },
-  seal: { width: 38, height: 38, borderRadius: 19 },
+  content: { paddingHorizontal: 16, paddingTop: 18, gap: 12, paddingBottom: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  seal: { width: 32, height: 32, borderRadius: 16 },
+  school: { color: colors.muted, fontSize: 12, lineHeight: 16, fontFamily: 'Manrope' },
+  basketButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.green, justifyContent: 'center', alignItems: 'center' },
+  basketCount: { position: 'absolute', right: -2, top: -2, minWidth: 18, height: 18, paddingHorizontal: 3, borderRadius: 9, backgroundColor: colors.gold, borderWidth: 1, borderColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  basketCountText: { fontSize: 10, lineHeight: 14, color: colors.green, fontFamily: 'ManropeBold' },
   brand: { color: colors.green, fontSize: 18, lineHeight: 24, fontFamily: 'ManropeBold', letterSpacing: -0.6 },
   title: { fontSize: 26, lineHeight: 32, fontFamily: 'ManropeBold', letterSpacing: -0.65, color: colors.green },
   subtitle: { fontSize: 17, lineHeight: 23, fontFamily: 'ManropeBold', letterSpacing: -0.35, color: colors.ink, flexShrink: 1 },
@@ -140,8 +158,11 @@ export const s = StyleSheet.create({
   small: { color: colors.muted, fontSize: 13, lineHeight: 18, fontFamily: 'Manrope' },
   emphasis: { color: colors.ink, fontSize: 13, fontFamily: 'ManropeBold' },
   tag: { alignSelf: 'center', backgroundColor: colors.mint, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 4, color: colors.green, fontSize: 11, fontFamily: 'ManropeBold' },
-  card: { backgroundColor: colors.white, borderRadius: 8, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line },
-  shelf: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: 8, overflow: 'hidden' },
+  card: { backgroundColor: colors.white, borderRadius: 16, padding: 14, gap: 9, borderWidth: 1, borderColor: colors.line },
+  shelf: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: 16, overflow: 'hidden' },
+  disclosure: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  disclosureRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  disclosureBody: { gap: 8, paddingBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowBetween: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   inline: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, gap: 6 },
@@ -157,10 +178,11 @@ export const s = StyleSheet.create({
   badge: { alignSelf: 'flex-start', maxWidth: '100%', flexDirection: 'row', gap: 4, alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 5 },
   badgeText: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontFamily: 'ManropeSemiBold' },
   segments: { flexDirection: 'row', gap: 4 }, segment: { flex: 1, height: 8, borderRadius: 3, backgroundColor: colors.mint },
-  tabs: { flexDirection: 'row', borderTopWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingVertical: 4 },
-  tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tabLabel: { fontSize: 12, color: colors.muted, fontFamily: 'ManropeSemiBold' },
-  tabIcon: { paddingVertical: 3, paddingHorizontal: 12, borderRadius: 15 },
+  tabFrame: { position: 'absolute', left: 14, right: 14, alignItems: 'center' },
+  tabs: { width: '100%', maxWidth: 440, flexDirection: 'row', padding: 5, borderRadius: 40, borderWidth: 1, borderColor: 'rgba(255,255,255,0.95)', backgroundColor: 'rgba(255,255,255,0.94)', boxShadow: '0 5px 22px rgba(0,53,37,0.14), 0 1px 4px rgba(0,53,37,0.08)' },
+  tab: { flex: 1, minWidth: 0, minHeight: 49, paddingVertical: 4, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 32 },
+  tabSelected: { backgroundColor: 'rgba(22,95,65,0.12)' },
+  tabLabel: { fontSize: 11, lineHeight: 15, color: colors.muted, fontFamily: 'ManropeSemiBold', textAlign: 'center' },
   chip: { minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   chipActive: { backgroundColor: colors.green, borderColor: colors.green }, chipText: { color: colors.green, fontSize: 13, fontFamily: 'ManropeSemiBold' },
   stepper: { flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.line, borderRadius: 6 },
@@ -168,5 +190,5 @@ export const s = StyleSheet.create({
   thumbnail: { width: 56, height: 60 },
   productTile: { backgroundColor: colors.mint, borderRadius: 5, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   hero: { width: '100%', aspectRatio: 1.65, borderRadius: 6 },
-  dock: { paddingHorizontal: 16, paddingVertical: 9, gap: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.white },
+  dock: { paddingTop: 4, gap: 8 },
 });

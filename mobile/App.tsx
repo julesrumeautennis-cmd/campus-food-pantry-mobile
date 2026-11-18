@@ -43,7 +43,7 @@ export default function App() {
     const links = Linking.addEventListener('url', event => { void receive(event.url); });
     return () => { active = false; subscription.unsubscribe(); appState.remove(); links.remove(); supabase!.auth.stopAutoRefresh(); };
   }, []);
-  return <SafeAreaProvider><MotionPreference><SafeAreaView style={s.screen}><StatusBar barStyle="dark-content" />
+  return <SafeAreaProvider><MotionPreference><SafeAreaView style={s.screen} edges={session && !recovery ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}><StatusBar barStyle="dark-content" />
     {!authConfigured ? <View style={[s.content, s.container]}><Heading title="Campus Food Pantry" description="The app needs its Supabase connection before sign-in is available." /><Notice text="Copy mobile/.env.example to .env, add the public Supabase key and API URL, then restart Expo." /></View> : (loading || (!fontsLoaded && !fontError)) ? <PantryLoading /> : <>
       {error ? <Notice text={error} error /> : null}
       {!session || recovery ? <AuthScreen recovery={recovery} onRecovered={() => setRecovery(false)} /> : <PantryApp key={session.user.id} />}
