@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from './api';
 import { lineLimit, units } from './basket';
@@ -40,7 +40,7 @@ function useShelf(items: Item[], { search, category, sort }: Filters) {
 
 export function Shelf({ items, me, cart, filters, onFilter, onOpen, onAdd, onRefresh }: {
   items: Item[]; me: Me; cart: Cart; filters: Filters; onFilter: (filters: Filters) => void;
-  onOpen: (id: number) => void; onAdd: (item: Item) => void; onRefresh: () => void;
+  onOpen: (id: number) => void; onAdd: (item: Item, source: React.ComponentRef<typeof View> | null) => void; onRefresh: () => void;
 }) {
   const { rows, loading, error, retry } = useShelf(items, filters);
   return <View style={s.stack}>
@@ -86,15 +86,23 @@ export function Shelf({ items, me, cart, filters, onFilter, onOpen, onAdd, onRef
               <Text style={s.small}>{item.category} · 1 unit each</Text><Badge text={item.availability} quantity={item.quantity} />
             </View>
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Add one ${item.name} to basket`} disabled={quantity >= limit}
-            accessibilityState={{ disabled: quantity >= limit }} onPress={() => onAdd(item)}
-            style={({ pressed }) => [s.iconButton, styles.add, quantity >= limit && styles.quiet, pressed && s.pressed]}>
-            <Reveal event={quantity} count>{quantity > 0 ? <Text style={[styles.count, quantity >= limit && { color: colors.green }]}>{quantity}</Text>
-              : <Icon name={unavailable ? 'block' : 'add'} color={quantity >= limit ? colors.muted : colors.white} />}</Reveal>
-          </Pressable>
+          <ShelfAdd item={item} quantity={quantity} disabled={quantity >= limit} unavailable={unavailable} onAdd={onAdd} />
         </View>;
       })}</View>}
   </View>;
+}
+
+function ShelfAdd({ item, quantity, disabled, unavailable, onAdd }: {
+  item: Item; quantity: number; disabled: boolean; unavailable: boolean;
+  onAdd: (item: Item, source: React.ComponentRef<typeof View> | null) => void;
+}) {
+  const source = useRef<React.ComponentRef<typeof View>>(null);
+  return <Pressable ref={source} accessibilityRole="button" accessibilityLabel={`Add one ${item.name} to basket`}
+    disabled={disabled} accessibilityState={{ disabled }} onPress={() => onAdd(item, source.current)}
+    style={({ pressed }) => [s.iconButton, styles.add, disabled && styles.quiet, pressed && s.pressed]}>
+    <Reveal event={quantity} count>{quantity > 0 ? <Text style={[styles.count, disabled && { color: colors.green }]}>{quantity}</Text>
+      : <Icon name={unavailable ? 'block' : 'add'} color={disabled ? colors.muted : colors.white} />}</Reveal>
+  </Pressable>;
 }
 
 export function Detail({ item, me, inBasket, availableToAdd, amount, onAmount }: {

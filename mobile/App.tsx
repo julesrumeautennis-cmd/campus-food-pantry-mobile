@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, Linking, Platform, StatusBar, View } from 'react-native';
+import { AppState, Linking, Platform, StatusBar, View } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, authConfigured } from './src/supabase';
 import { useFonts } from 'expo-font';
@@ -9,7 +9,8 @@ import { pantryFonts } from './src/assets';
 import { MotionPreference } from './src/motion';
 import { AuthScreen } from './src/AuthScreen';
 import { PantryApp } from './src/PantryApp';
-import { colors, Heading, Notice, s } from './src/ui';
+import { PantryLoading } from './src/CartMotion';
+import { Heading, Notice, s } from './src/ui';
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({ ...pantryFonts, ...MaterialIcons.font });
@@ -43,7 +44,7 @@ export default function App() {
     return () => { active = false; subscription.unsubscribe(); appState.remove(); links.remove(); supabase!.auth.stopAutoRefresh(); };
   }, []);
   return <SafeAreaProvider><MotionPreference><SafeAreaView style={s.screen}><StatusBar barStyle="dark-content" />
-    {!authConfigured ? <View style={[s.content, s.container]}><Heading title="Campus Food Pantry" description="The app needs its Supabase connection before sign-in is available." /><Notice text="Copy mobile/.env.example to .env, add the public Supabase key and API URL, then restart Expo." /></View> : (loading || (!fontsLoaded && !fontError)) ? <View style={[s.container, { justifyContent: 'center' }]}><ActivityIndicator size="large" color={colors.green} /></View> : <>
+    {!authConfigured ? <View style={[s.content, s.container]}><Heading title="Campus Food Pantry" description="The app needs its Supabase connection before sign-in is available." /><Notice text="Copy mobile/.env.example to .env, add the public Supabase key and API URL, then restart Expo." /></View> : (loading || (!fontsLoaded && !fontError)) ? <PantryLoading /> : <>
       {error ? <Notice text={error} error /> : null}
       {!session || recovery ? <AuthScreen recovery={recovery} onRecovered={() => setRecovery(false)} /> : <PantryApp key={session.user.id} />}
     </>}

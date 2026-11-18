@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { BackHandler, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AdminScreen, type StaffPanel } from './AdminScreen';
 import { api, ApiFailure } from './api';
-import { Basket, SubmissionResult } from './Basket';
+import { Basket, SubmissionResult } from './BasketScreen';
 import { basketUnits, lineLimit, requestLines, setQuantity, units, validBasket } from './basket';
-import { Reveal } from './motion';
+import { CartFlight, PantryLoading, type Flight } from './CartMotion';
+import { Reveal, useMotionAllowed } from './motion';
 import { defaultFilters, Detail, Shelf } from './Shelf';
 import { supabase } from './supabase';
 import type { Cart, Item, Me, PantryRequest, SubmitRequest } from './types';
-import { Brand, Button, colors, Empty, Field, Heading, Icon, Notice, Quota, RequestCard, s, type IconName } from './ui';
+import { Brand, Button, colors, Empty, Heading, Icon, Notice, Quota, RequestCard, s, type IconName } from './ui';
 
 type Tab = 'browse' | 'requests' | 'profile' | 'admin';
 type Page = { kind: Tab | 'basket' | 'review' } | { kind: 'detail' | 'result'; id: number };
@@ -88,11 +89,18 @@ export function PantryApp() {
   const [actionError, setActionError] = useState('');
   const [refreshing, setRefreshing] = useState(true);
   const [sending, setSending] = useState(false);
-  const [savingName, setSavingName] = useState(false);
   const [staffPanel, setStaffPanel] = useState<StaffPanel>('queue');
   const [staffBusy, setStaffBusy] = useState(false);
   const [adminRefresh, setAdminRefresh] = useState(0);
-  const [name, setName] = useState<string | null>(null);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const flightId = useRef(0);
+  const container = useRef<React.ComponentRef<typeof View>>(null);
+  const basketButton = useRef<React.ComponentRef<typeof View>>(null);
+  const motionAllowed = useMotionAllowed();
+  useEffect(() => { if (!motionAllowed) setFlights([]); }, [motionAllowed]);
+  const finishFlight = useCallback((id: number) => {
+    setFlights(current => current.filter(flight => flight.id !== id));
+  }, []);
   const activeLoad = useRef<AbortController | null>(null);
   const submission = useRef<{ basket: string; key: string } | null>(null);
   const inFlight = useRef(false);
@@ -122,7 +130,7 @@ export function PantryApp() {
   }, [refresh]);
   useEffect(() => {
     setActionError('');
-    if (page.kind === 'requests' || page.kind === 'review') void refresh();
+    if (page.kind === 'requests' || page.kind === 'profile' || page.kind === 'review') void refresh();
   }, [page, refresh]);
 
   const byId = new Map(items.map(item => [item.itemId, item]));
@@ -141,9 +149,21 @@ export function PantryApp() {
     const item = byId.get(id);
     setCart(current => setQuantity(current, id, item ? Math.min(quantity, lineLimit(current, item, me.remainingUnits)) : 0));
   }
-  function add(item: Item, count: number) {
-    if (!me || inFlight.current) return;
+  function add(item: Item, count: number, source: React.ComponentRef<typeof View> | null) {
+    if (!me || inFlight.current || (cart[item.itemId] ?? 0) >= lineLimit(cart, item, me.remainingUnits)) return;
     setCart(current => setQuantity(current, item.itemId, Math.min((current[item.itemId] ?? 0) + count, lineLimit(current, item, me.remainingUnits))));
+    if (!motionAllowed || !source) return;
+    source.measureInWindow((x, y, width, height) => {
+      basketButton.current?.measureInWindow((targetX, targetY, targetWidth, targetHeight) => {
+        container.current?.measureInWindow((left, top) => {
+          if (!width || !height || !targetWidth || !targetHeight) return;
+          const flight = { id: ++flightId.current, item,
+            from: { x: x + width / 2 - left, y: y + height / 2 - top },
+            to: { x: targetX + targetWidth / 2 - left, y: targetY + targetHeight / 2 - top } };
+          setFlights(current => [...current, flight]);
+        });
+      });
+    });
   }
   function pull() {
     void refresh();
@@ -174,33 +194,36 @@ export function PantryApp() {
     } finally { inFlight.current = false; setSending(false); }
   }
 
-  async function saveName() {
-    if (!name?.trim() || savingName) return;
-    setSavingName(true); setActionError('');
-    try { setMe(await api<Me>('/me', 'PATCH', { displayName: name.trim() })); setName(null); }
-    catch (e) { setActionError(e instanceof Error ? e.message : 'Could not save your name.'); }
-    finally { setSavingName(false); }
-  }
   async function signOut() {
     const { error } = await supabase!.auth.signOut();
     if (error) setActionError(error.message);
   }
 
-  return <View style={s.container}>
+  return <View ref={container} collapsable={false} style={s.container}>
     <Brand subtitle={`Roosevelt University · ${labels[page.kind]}`} disabled={sending || staffBusy}
-      onBack={contextual || page.kind === 'admin' ? back : undefined} onProfile={me && page.kind !== 'profile' ? () => go({ kind: 'profile' }) : undefined} />
-    {!me ? <View style={s.content}>{refreshing ? <ActivityIndicator accessibilityLabel="Loading pantry" color={colors.green} /> : <>
+      onBack={contextual || page.kind === 'admin' ? back : undefined}
+      trailing={me && <Pressable ref={basketButton} accessibilityRole="button" accessibilityLabel="View basket"
+        accessibilityHint={`${units(total)}, ${kinds} ${kinds === 1 ? 'lot' : 'lots'} selected`}
+        disabled={sending || staffBusy || page.kind === 'basket'} onPress={() => go({ kind: 'basket' })}
+        style={({ pressed }) => [s.iconButton, s.solid, pressed && s.pressed]}>
+        <Icon name="shopping-basket" color={colors.white} />
+        {total > 0 && <Text style={styles.basketCount}>{total}</Text>}
+      </Pressable>} />
+    {!me ? (refreshing ? <PantryLoading /> : <View style={s.content}>
       <Notice error text={loadError || 'Unable to load your pantry.'} /><Button title="Try again" onPress={() => void refresh()} />
-      <Button title="Sign out" secondary onPress={() => void signOut()} /></>}{actionError && <Notice error text={actionError} />}</View> : <>
+      <Button title="Sign out" secondary onPress={() => void signOut()} />{actionError && <Notice error text={actionError} />}
+    </View>) : <>
       <ScrollView key={'id' in page ? `${page.kind}-${page.id}` : page.kind} style={s.grow} keyboardShouldPersistTaps="handled"
         contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={colors.green} />}>
         {loadError && <View style={s.tight}><Notice error text={loadError} /><Button secondary title="Retry connection" onPress={pull} /></View>}
         {actionError && <Notice error text={actionError} />}
         <Reveal event={page.kind} style={s.stack} testID="screen-content">
           {page.kind === 'browse' && <Shelf items={items} me={me} cart={cart} filters={filters} onFilter={setFilters}
-            onOpen={id => { setDraftQuantity(1); go({ kind: 'detail', id }); }} onAdd={item => add(item, 1)} onRefresh={pull} />}
-          {page.kind === 'detail' && (detail ? <Detail item={detail} me={me} inBasket={inBasket} availableToAdd={room} amount={amount} onAmount={setDraftQuantity} />
-            : <Empty title="Lot unavailable" detail="The pantry team has removed this lot from the shelves." />)}
+            onOpen={id => { setDraftQuantity(1); go({ kind: 'detail', id }); }} onAdd={(item, source) => add(item, 1, source)} onRefresh={pull} />}
+          {page.kind === 'detail' && (detail ? <>
+            <Detail item={detail} me={me} inBasket={inBasket} availableToAdd={room} amount={amount} onAmount={setDraftQuantity} />
+            {room > 0 && <Button title={`Add ${units(amount)} to basket`} icon="add" onPress={() => add(detail, amount, null)} />}
+          </> : <Empty title="Lot unavailable" detail="The pantry team has removed this lot from the shelves." />)}
           {(page.kind === 'basket' || page.kind === 'review') && <Basket me={me} cart={cart} items={byId} review={page.kind === 'review'}
             valid={valid} onChange={change} onClear={() => setCart({})} />}
           {page.kind === 'result' && (result ? <SubmissionResult me={me} request={result} /> : <Notice text="Open My requests to see the latest decision." />)}
@@ -209,23 +232,20 @@ export function PantryApp() {
             {requests.length ? requests.map(row => <RequestCard key={row.id} request={row} />) : <Empty title="No requests yet" detail="Select items and submit your basket to start a request." />}
           </>}
           {page.kind === 'profile' && <>
-            <Heading eyebrow={me.role === 'ADMIN' ? 'Administrator' : 'Member'} title={me.displayName} /><Quota me={me} />
-            <View style={s.card}><Field label="Display name" value={name ?? me.displayName} maxLength={80} onChangeText={setName} />
-              <Button title="Save name" onPress={() => void saveName()} busy={savingName} disabled={!name?.trim() || name.trim() === me.displayName} /></View>
+            <Heading title={me.displayName} />
+            <View style={s.card}>
+              <View style={s.rowBetween}><Text style={s.label}>Role</Text><Text style={s.tag}>{me.role === 'ADMIN' ? 'Admin' : 'Member'}</Text></View>
+              <View style={s.tight}><Text style={s.label}>Student ID</Text><Text selectable style={s.body}>{me.userId}</Text></View>
+            </View>
+            <Quota me={me} />
+            <View style={s.rowBetween}><Heading title="Request history" /><Button secondary title="Refresh status" icon="refresh" busy={refreshing} onPress={pull} /></View>
+            {requests.length ? requests.map(row => <RequestCard key={row.id} request={row} />) : <Empty title="No requests yet" detail="Submitted requests will appear here." />}
             <Button secondary title="Sign out" onPress={() => void signOut()} />
           </>}
           {page.kind === 'admin' && me.role === 'ADMIN' && <AdminScreen panel={staffPanel} onBusy={setStaffBusy} refreshKey={adminRefresh} onChanged={() => void refresh()} />}
         </Reveal>
       </ScrollView>
 
-      {page.kind === 'browse' && <View style={[s.dock, s.rowBetween]}>
-        <View style={s.grow}><Text style={s.emphasis}>Basket · {units(total)}</Text>
-          <Text style={s.small}>{kinds} {kinds === 1 ? 'lot' : 'lots'} selected</Text></View>
-        <Button title="View basket" icon="shopping-basket" onPress={() => go({ kind: 'basket' })} />
-      </View>}
-      {page.kind === 'detail' && <View style={s.dock}>{detail && room > 0
-        ? <Button title={`Add ${units(amount)} to basket`} icon="shopping-basket" onPress={() => { add(detail, amount); go({ kind: 'basket' }); }} />
-        : <Button secondary title={total ? 'View basket' : 'Back to browse'} onPress={() => go({ kind: total ? 'basket' : 'browse' })} />}</View>}
       {page.kind === 'basket' && <View style={s.dock}>
         {total > 0 && <Button title="Proceed to review request" icon="arrow-forward" disabled={!valid} onPress={() => go({ kind: 'review' })} />}
         <Button secondary title={total ? 'Add more items' : 'Browse items'} onPress={() => go({ kind: 'browse' })} />
@@ -239,5 +259,11 @@ export function PantryApp() {
           ...tab, active: page.kind === tab.kind, select: () => { if (page.kind !== tab.kind) go({ kind: tab.kind }); },
         }))} />}
     </>}
+    {motionAllowed && flights.map(flight => <CartFlight key={flight.id} flight={flight} onFinish={finishFlight} />)}
   </View>;
 }
+
+const styles = StyleSheet.create({
+  basketCount: { position: 'absolute', top: 0, right: 0, minWidth: 17, height: 17, borderRadius: 9,
+    backgroundColor: colors.gold, color: colors.green, textAlign: 'center', fontSize: 11, lineHeight: 17, fontFamily: 'ManropeBold' },
+});

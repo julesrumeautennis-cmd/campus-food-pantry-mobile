@@ -16,14 +16,15 @@ export function Icon({ name, size = 20, color = colors.green }: { name: IconName
   return <MaterialIcons name={name} size={size} color={color} accessible={false} importantForAccessibility="no" />;
 }
 
-export function Brand({ subtitle, onBack, onProfile, disabled = false }: {
-  subtitle: string; onBack?: () => void; onProfile?: () => void; disabled?: boolean;
+export function Brand({ subtitle, onBack, onProfile, trailing, disabled = false }: {
+  subtitle: string; onBack?: () => void; onProfile?: () => void; trailing?: React.ReactNode; disabled?: boolean;
 }) {
   return <View style={s.header}>
     {onBack && <IconButton name="arrow-back" label="Go back" onPress={onBack} disabled={disabled} />}
     <Image source={brandMark} accessible={false} style={s.seal} />
     <View style={s.grow}><Text style={s.brand}>Campus Food Pantry</Text><Text style={s.small}>{subtitle}</Text></View>
     {onProfile && <IconButton solid name="person-outline" label="Open profile" onPress={onProfile} disabled={disabled} />}
+    {trailing}
   </View>;
 }
 
