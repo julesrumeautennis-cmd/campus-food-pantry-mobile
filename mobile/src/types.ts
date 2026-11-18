@@ -6,3 +6,4 @@ export type Cart = Record<number, number>;
 export type Inspection = { id: number; display_name: string; hygiene: string; damaged_products: string; cleanliness: string; notes: string; created_at: string };
 export type Movement = { id: number; name: string; delta: number; reason: string; created_at: string };
 export type Report = { asOf: string; totalLots: number; totalUnits: number; lowStock: Item[]; outOfStock: Item[]; expired: Item[]; items: Item[] };
+export type SubmitRequest = { idempotencyKey: string; lines: { itemId: number; quantity: number }[] };

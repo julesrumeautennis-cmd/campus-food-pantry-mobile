@@ -6,7 +6,7 @@ import { api } from './src/api';
 import { AuthScreen } from './src/AuthScreen';
 import { AdminScreen } from './src/AdminScreen';
 import { Badge, Button, colors, Empty, Field, Heading, Notice, ProductTile, Quota, s, Stepper } from './src/ui';
-import type { Cart, Item, Me, PantryRequest } from './src/types';
+import type { Cart, Item, Me, PantryRequest, SubmitRequest } from './src/types';
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null); const [loading, setLoading] = useState(true);
@@ -102,7 +102,7 @@ function PantryApp() {
         const key = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => { const r = Math.floor(Math.random() * 16); return (char === 'x' ? r : (r & 3) | 8).toString(16); });
         submission.current = { fingerprint, key };
       }
-      const saved = await api<PantryRequest>('/requests', 'POST', { lines, idempotencyKey: submission.current.key });
+      const saved = await api<PantryRequest>('/requests', 'POST', { lines, idempotencyKey: submission.current.key } satisfies SubmitRequest);
       setResult(saved); setCart({}); setReview(false); submission.current = null;
       await refresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not submit. Try again with this same basket.'); }

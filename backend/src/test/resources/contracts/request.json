@@ -1,0 +1,17 @@
+{
+  "submit": {
+    "idempotencyKey": "10000000-0000-4000-8000-000000000001",
+    "lines": [{ "itemId": 101, "quantity": 2 }]
+  },
+  "pending": {
+    "id": 1001,
+    "userId": "20000000-0000-4000-8000-000000000002",
+    "displayName": "Alex",
+    "status": "PENDING",
+    "totalUnits": 2,
+    "submittedAt": "2026-11-16T16:20:00.000+00:00",
+    "decidedAt": null,
+    "decisionReason": null,
+    "lines": [{ "itemId": 101, "name": "Rice", "category": "Food", "quantity": 2, "expirationDate": "2027-05-30" }]
+  }
+}

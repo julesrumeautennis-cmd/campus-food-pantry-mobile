@@ -2,13 +2,13 @@
 
 ## PR validation
 
-.github/workflows/ci-cd.yml runs for every PR to main, pushes to main, and manual dispatches. No path filters leave a required check pending. New commits cancel obsolete validation runs.
+.github/workflows/ci-cd.yml runs for PRs to main or setup/app-ci-cd and pushes to main. Manual dispatch is declared, but GitHub requires the workflow to be present on the default branch to dispatch it. No path filters leave a required check pending. New commits cancel obsolete validation runs.
 
 | Check | Validation |
 | --- | --- |
-| Java and Docker | Original regressions; Docker Maven verify; real container startup against limited PostgreSQL login; custom port, health, unauthenticated routes, forwarded same-origin CORS and unavailable database |
+| Java and Docker | Original regressions; Docker Maven verify including the producer contract; concurrent approval on isolated PostgreSQL; real container startup against limited PostgreSQL login; custom port, health, unauthenticated routes, forwarded same-origin CORS and unavailable database |
 | PostgreSQL constraints | Fresh PostgreSQL 17, minimal Supabase Auth fixture, real migration, demo seed, five constraints and private-table access |
-| Expo checks and bundles | Locked npm install, strict TypeScript, Expo compatibility, web/native API URL tests, JavaScript bundles for iOS, Android and web |
+| Expo checks and bundles | Locked npm install, strict TypeScript, Expo compatibility, consumer request contract and web/native API URL tests, JavaScript bundles for iOS, Android and web |
 | Vercel configuration | Validate vercel.json against Vercel's official published schema |
 | CI passed | Fails if any validation failed, was skipped or was cancelled |
 

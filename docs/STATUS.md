@@ -1,4 +1,12 @@
-# Verified status — 2026-11-16
+# Verified status
+
+## Integration handoff — 2026-11-18
+
+The application baseline is PR #1 at `dfc183d`. The [build plan](BUILD.md) links four ready issues and their dependencies. The [contract](CONTRACTS.md) links the executable shared example. The new concurrency check uses independent database sessions in disposable PostgreSQL. See the integration PR checks for evidence on its latest revision.
+
+GitHub returned an empty list of effective rules for main and reported the branch as unprotected. The checked-in ruleset targets main, requires **CI passed** and allows a sole maintainer. Importing it requires repository administration access.
+
+## Earlier observations — 2026-11-16
 
 ## Source and CI
 
