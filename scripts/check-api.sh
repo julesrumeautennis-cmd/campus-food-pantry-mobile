@@ -55,4 +55,5 @@ expect_status 403 -H 'Origin: https://untrusted.example' -H 'X-Forwarded-Host: p
 psql -v ON_ERROR_STOP=1 -c 'REVOKE pantry_backend FROM pantry_ci;'
 expect_status 503 http://localhost:9090/health/ready
 python3 -c 'import json,sys; assert json.load(open(sys.argv[1])) == {"status":"unavailable"}' "$body"
+psql -v ON_ERROR_STOP=1 -c 'GRANT pantry_backend TO pantry_ci;'
 echo 'PASS: non-root Vercel profile, custom port, limited JDBC login, health, authentication, forwarded origin, CORS and unavailable-database response.'

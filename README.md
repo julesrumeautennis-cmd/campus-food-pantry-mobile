@@ -2,6 +2,8 @@
 
 CST250 app: Java Spring Boot, Supabase Auth/PostgreSQL, and React Native/Expo. Open signup; MEMBER for everyone except the one verified server-side ADMIN_USER_ID. Requests are FIFO with a five-unit weekly quota.
 
+New contributor? Pick a ready issue in [the build plan](docs/BUILD.md), then follow [your role and PR workflow](AGENTS.md). The [API contract](docs/CONTRACTS.md) contains the shared examples.
+
 ## Layout
 
 | Directory | Purpose |
