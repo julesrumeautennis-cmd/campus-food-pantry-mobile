@@ -2,7 +2,7 @@
 
 ## Home-screen installation
 
-The Expo web build includes a standalone manifest, the Roosevelt vegetable-basket icon and iPhone home-screen metadata. The browser check reads the exported manifest through Chrome and opens each launcher image. Device installation and a public production URL are still pending. See the [phone installation steps](../README.md#install-the-web-app-on-a-phone).
+The Expo web build includes a standalone manifest, the Roosevelt vegetable-basket icon and iPhone home-screen metadata. The browser check reads the exported manifest through Chrome and opens each launcher image. The native iOS configuration uses the same artwork at 1024 × 1024 pixels. Device installation and a public production URL are still pending. See the [phone installation steps](../README.md#install-the-web-app-on-a-phone).
 
 ## Stitch UI integration — 2026-11-18
 
