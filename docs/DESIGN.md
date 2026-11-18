@@ -1,4 +1,20 @@
-# Campus Pantry — Figma design brief
+# Campus Pantry mobile design
+
+## Implemented Stitch screens
+
+The Expo client follows Jules's **Campus Food Pantry App Design** export (Stitch project 264145195589890532). It uses the Roosevelt seal, bundled Manrope fonts and product images, a mint canvas, compact shelf rows, forest-green actions and five quota segments. Illustrations describe a product family. The Java lot name, date and stock count identify the actual lot. New products receive a category icon.
+
+| Stitch screen | What the app does | Review decision |
+| --- | --- | --- |
+| Browse Items | Search names or lot IDs, filter by category, switch between Java's name and ID sorting, add one unit and open the basket. | Counts come from current inventory. Expired and empty lots can be inspected. Their add buttons are disabled. |
+| Product Detail | Show the selected lot, best-before date, available stock and a bounded quantity picker. | The service defines one unit per item. Package weights and a three-per-product cap in the example have no API representation. |
+| Your Basket | Adjust or remove lots, confirm clearing all, review the total and current allowance. | The five segments represent approved units. The basket shows its own count. The reset date and Chicago time zone come from the profile. |
+| Review and Submission Result | Check the basket, submit once and display the returned request ID and status. History shows actual decisions and decline reasons. | A network retry reuses the same key for unchanged lines. Submission reserves no stock or quota. The result appears after Java responds. |
+| Admin Incoming Requests Review | Show counts by actual status, stock by lot, oldest-first review and a reason for a decline. Inventory, reports and inspections remain available in staff navigation. | Only the queue head has decision actions. The server rechecks stock and quota. The mock station, scanner, substitutions, ready-for-pickup stage and member quota estimates have no matching API. |
+
+Screen changes use a 190 ms fade/translation. Quantity feedback uses a 150 ms scale change. Both follow system reduced-motion preferences, including changes while the app is open. Controls use text or accessible labels and a minimum 44-point target. See [the browser verification](../mobile/AGENTS.md#browser-verification) for the reproducible member/staff flow and the CI screenshots.
+
+## Earlier Figma proposal
 
 ## Delivered design · 2026-11-16
 
@@ -12,7 +28,7 @@
 
 Visual review caught and corrected multiline text sizing. The final structural audit found no content overflowing its non-scrolling parent and no linked target smaller than 44 × 44. Scroll containers intentionally retain overflow. Screenshots of the review board and signup confirm the corrected layout.
 
-This is a **click-through design proposal**, not a deployed app or a Supabase-connected prototype. Example records are illustrative. Text input, some filters and secondary actions are visual specifications; the prototype connects representative flows, not every possible data combination. Device accessibility, keyboard behavior, large text and actual network/account flows still require implementation and testing. Existing React Native screens were not replaced by this design.
+This is a **click-through design proposal**, not a deployed app or a Supabase-connected prototype. Example records are illustrative. Text input, some filters and secondary actions are visual specifications; the prototype connects representative flows, not every possible data combination. Device accessibility, keyboard behavior, large text and actual network/account flows still require implementation and testing. The later Stitch implementation is described above.
 
 ## Scope
 
@@ -24,7 +40,7 @@ The app should feel like a well-run neighborhood pantry: clear shelf labels, res
 
 Palette: forest `#174D3A`, paper `#F7F9F6`, white `#FFFFFF`, ink `#17211D`, harvest `#DDB64D`, error `#B44235`. Manrope is the proposed typeface, with bold compact headings and readable body text. Keep a consistent 4/8-point spacing rhythm, 44-point minimum tap targets, quiet separators and rounded controls. No marketing hero, decorative gradients or revenue charts.
 
-The existing implementation uses system fonts and a Stitch-derived green/mint palette. The Figma proposal deliberately refines those foundations; it must be reviewed before changing the React Native theme. UI copy stays in English.
+The earlier implementation used system fonts. The Stitch implementation now bundles Manrope. UI copy stays in English.
 
 ## Familiar patterns, adapted to this product
 

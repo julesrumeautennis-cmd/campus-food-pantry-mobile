@@ -1,30 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { api } from './api';
+import { Pressable, Text, View } from 'react-native';
+import { api, ApiFailure } from './api';
+import { AdminQueue } from './AdminQueue';
 import type { Inspection, Item, Movement, PantryRequest, Report } from './types';
 import { Badge, Button, colors, Empty, Field, Heading, Notice, s } from './ui';
 
-type Panel = 'queue' | 'inventory' | 'reports' | 'inspections';
+export type StaffPanel = 'queue' | 'inventory' | 'reports' | 'inspections';
 function integer(value: string, allowZero = false) {
   if (!/^\d+$/.test(value)) throw new Error('Enter a whole number.');
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number > 2147483647 || number < (allowZero ? 0 : 1)) throw new Error('Enter a valid positive quantity or ID.');
   return number;
 }
-export function AdminScreen({ onChanged }: { onChanged: () => void }) {
-  const [panel, setPanel] = useState<Panel>('queue'); const [requests, setRequests] = useState<PantryRequest[]>([]);
+export function AdminScreen({ panel, onChanged, refreshKey, onBusy }: {
+  panel: StaffPanel; onChanged: () => void; refreshKey: number; onBusy: (busy: boolean) => void;
+}) {
+  const [requests, setRequests] = useState<PantryRequest[]>([]);
   const [items, setItems] = useState<Item[]>([]); const [report, setReport] = useState<Report | null>(null);
   const [inspections, setInspections] = useState<Inspection[]>([]); const [movements, setMovements] = useState<Movement[]>([]);
   const [busy, setBusy] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [message, setMessage] = useState('');
-  const [reason, setReason] = useState(''); const [restockId, setRestockId] = useState<number | null>(null); const [restockQty, setRestockQty] = useState('');
+  const [queueReady, setQueueReady] = useState(false); const [restockId, setRestockId] = useState<number | null>(null); const [restockQty, setRestockQty] = useState('');
   const [confirmExpired, setConfirmExpired] = useState(false); const [add, setAdd] = useState(false);
   const [lot, setLot] = useState({ id: '', name: '', category: 'Food', quantity: '', date: '' });
   const [inspection, setInspection] = useState({ hygiene: '', damagedProducts: '', cleanliness: '', notes: '' });
   const operationInFlight = useRef(false);
-  async function load(signal?: AbortSignal) {
+  const activeLoad = useRef<AbortController | null>(null);
+  async function load() {
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
+    const { signal } = controller;
     setLoading(true); setError('');
     try {
-      if (panel === 'queue') { const data = await api<PantryRequest[]>('/admin/requests', 'GET', undefined, signal); if (!signal?.aborted) setRequests(data); }
+      if (panel === 'queue') {
+        const [queue, stock] = await Promise.all([api<PantryRequest[]>('/admin/requests', 'GET', undefined, signal), api<Item[]>('/items?sort=id', 'GET', undefined, signal)]);
+        if (!signal.aborted) { setRequests(queue); setItems(stock); setQueueReady(true); }
+      }
       if (panel === 'inventory') { const data = await api<Item[]>('/items?sort=name', 'GET', undefined, signal); if (!signal?.aborted) setItems(data); }
       if (panel === 'reports') {
         const [r, m] = await Promise.all([api<Report>('/admin/reports/inventory', 'GET', undefined, signal), api<Movement[]>('/admin/stock-movements', 'GET', undefined, signal)]);
@@ -34,19 +45,21 @@ export function AdminScreen({ onChanged }: { onChanged: () => void }) {
     } catch (e) { if (!signal?.aborted) setError(e instanceof Error ? e.message : 'Could not load this view.'); }
     finally { if (!signal?.aborted) setLoading(false); }
   }
-  useEffect(() => { const control = new AbortController(); void load(control.signal); return () => control.abort(); }, [panel]);
+  useEffect(() => { void load(); return () => activeLoad.current?.abort(); }, [panel, refreshKey]);
+  useEffect(() => { setMessage(''); }, [panel]);
   async function perform(action: () => Promise<void>) {
-    if (operationInFlight.current) return; operationInFlight.current = true; setBusy(true); setError(''); setMessage('');
+    if (operationInFlight.current) return; operationInFlight.current = true; onBusy(true); setBusy(true); setError(''); setMessage('');
     try { await action(); await load(); onChanged(); }
-    catch (e) { setError(e instanceof Error ? e.message : 'The change could not be saved.'); }
-    finally { operationInFlight.current = false; setBusy(false); }
+    catch (e) {
+      if (e instanceof ApiFailure && e.status === 409) await load();
+      setError(e instanceof Error ? e.message : 'The change could not be saved.');
+    }
+    finally { operationInFlight.current = false; onBusy(false); setBusy(false); }
   }
-  const pending = requests.filter(r => r.status === 'PENDING'); const next = pending[0];
-  async function decide(action: 'APPROVE' | 'DECLINE') {
-    if (!next) return;
+  async function decide(id: number, action: 'APPROVE' | 'DECLINE', reason?: string) {
     await perform(async () => {
-      const result = await api<PantryRequest>(`/admin/requests/${next.id}/decision`, 'POST', { action, ...(action === 'DECLINE' ? { reason: reason.trim() } : {}) });
-      setMessage(`Request #${result.id}: ${result.status.toLowerCase()}.${result.decisionReason ? ` ${result.decisionReason}` : ''}`); setReason('');
+      const result = await api<PantryRequest>(`/admin/requests/${id}/decision`, 'POST', { action, ...(reason ? { reason } : {}) });
+      setMessage(`Request #${result.id} was ${result.status.toLowerCase()}.${result.decisionReason ? ' ' + result.decisionReason : ''}`);
     });
   }
   async function createLot() {
@@ -57,17 +70,10 @@ export function AdminScreen({ onChanged }: { onChanged: () => void }) {
     });
   }
   return <View style={{ gap: 20 }}>
-    <Heading eyebrow="PANTRY OPERATIONS" title="Keep good things moving." description="Review requests, care for stock and record your checks." />
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }}>{(['queue', 'inventory', 'reports', 'inspections'] as Panel[]).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: panel === value }} onPress={() => { setPanel(value); setMessage(''); setError(''); }} style={[s.chip, panel === value && s.chipActive]}><Text style={[s.chipText, panel === value && { color: 'white' }]}>{value.charAt(0).toUpperCase() + value.slice(1)}</Text></Pressable>)}</ScrollView>
+    <View style={s.rowBetween}><Heading eyebrow="Staff administration" title={panel === 'queue' ? 'Incoming requests' : panel.charAt(0).toUpperCase() + panel.slice(1)} />
+      <Button title="Refresh" icon="refresh" secondary onPress={() => void load()} busy={loading} disabled={busy} /></View>
     {error ? <Notice error text={error} /> : null}{message ? <Notice text={message} /> : null}
-    <Button title="Refresh this view" secondary onPress={() => void load()} busy={loading} disabled={busy} />
-    {panel === 'queue' ? <>
-      <Text style={s.subtitle}>{pending.length} waiting for review</Text>
-      {next ? <View style={s.card}><Text style={s.eyebrow}>NEXT IN LINE · #{next.id}</Text><Text style={s.subtitle}>{next.displayName}</Text><Text style={s.small}>{new Date(next.submittedAt).toLocaleString()} · {next.totalUnits} units</Text>{next.lines.map(line => <View key={line.itemId} style={s.rowBetween}><Text style={s.body}>{line.name}</Text><Text style={s.body}>× {line.quantity}</Text></View>)}<Notice text="Approval checks current stock, expiration and this week’s allowance. If a check fails, the request is declined with a reason." /><Button title={`Approve request #${next.id}`} busy={busy} disabled={loading} onPress={() => void decide('APPROVE')} /><Field label="Reason for declining" value={reason} onChangeText={setReason} multiline maxLength={500} placeholder="Explain what the member needs to know…" /><Button title="Decline with this reason" secondary busy={busy} disabled={!reason.trim() || loading} onPress={() => void decide('DECLINE')} /></View> : !loading ? <Empty title="All caught up." detail="New requests will appear here in arrival order." /> : null}
-      {pending.slice(1).map((request, index) => <View key={request.id} style={s.card}><Text style={s.eyebrow}>WAITING · POSITION {index + 2}</Text><Text style={s.subtitle}>#{request.id} · {request.displayName}</Text><Text style={s.body}>{request.totalUnits} units requested</Text></View>)}
-      {requests.some(r => r.status !== 'PENDING') ? <Text style={s.subtitle}>Processed requests</Text> : null}
-      {requests.filter(r => r.status !== 'PENDING').slice(-30).reverse().map(request => <View key={request.id} style={s.card}><View style={s.rowBetween}><Text style={s.subtitle}>#{request.id} · {request.displayName}</Text><Badge text={request.status} /></View>{request.decisionReason ? <Text style={s.body}>{request.decisionReason}</Text> : null}</View>)}
-    </> : null}
+    {panel === 'queue' && <AdminQueue requests={requests} items={items} busy={busy || loading || Boolean(error)} ready={queueReady} onDecide={(id, action, reason) => void decide(id, action, reason)} />}
     {panel === 'inventory' ? <>
       <Button title={add ? 'Close new lot form' : '+ Add a new lot'} onPress={() => setAdd(!add)} secondary />
       {add ? <View style={s.card}><Text style={s.subtitle}>A new lot</Text><Field label="Unique lot ID" keyboardType="number-pad" value={lot.id} onChangeText={id => setLot(p => ({ ...p, id }))} /><Field label="Product name" maxLength={120} value={lot.name} onChangeText={name => setLot(p => ({ ...p, name }))} /><View style={{ flexDirection: 'row', gap: 8 }}>{['Food', 'Hygiene'].map(category => <Pressable key={category} accessibilityRole="button" accessibilityState={{ selected: lot.category === category }} onPress={() => setLot(p => ({ ...p, category }))} style={[s.chip, lot.category === category && s.chipActive]}><Text style={[s.chipText, lot.category === category && { color: 'white' }]}>{category}</Text></Pressable>)}</View><Field label="Starting quantity" value={lot.quantity} keyboardType="number-pad" onChangeText={quantity => setLot(p => ({ ...p, quantity }))} /><Field label="Expiry date (optional, YYYY-MM-DD)" value={lot.date} onChangeText={date => setLot(p => ({ ...p, date }))} placeholder="2027-06-30" autoCapitalize="none" /><Button title="Add lot" onPress={() => void createLot()} busy={busy} disabled={!lot.name.trim() || !lot.id || !lot.quantity} /></View> : null}
