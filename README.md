@@ -50,6 +50,15 @@ Use Expo Go on a phone, or npm run web in a browser. A phone cannot reach the PC
 
 Run npm run build:web for a static web bundle. On Vercel, omit EXPO_PUBLIC_API_URL: the web app calls the Java service on the same origin. Separate web hosting needs an explicit API URL and its exact origin in CORS_ORIGINS. Supabase email delivery and allowed redirect URLs must be configured before testing signup and password recovery end to end.
 
+### Install the web app on a phone
+
+Open the pantry's HTTPS address on the phone.
+
+- On iPhone, open the link in Safari, tap **Share** and **Add to Home Screen**, then **Add**. If Safari offers **Open as Web App**, leave it enabled.
+- On Android, open the link in Chrome, tap **⋮** and select **Install app** or **Add to Home screen** followed by **Install**.
+
+Tap **Pantry** on the home screen to open the app in its own window. Sign-in, inventory and requests use the same online services as the website.
+
 ## Tests and pull requests
 
 ```powershell

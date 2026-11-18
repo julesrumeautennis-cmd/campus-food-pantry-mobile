@@ -1,5 +1,9 @@
 # Verified status
 
+## Home-screen installation
+
+The Expo web build includes a standalone manifest, the Roosevelt vegetable-basket icon and iPhone home-screen metadata. The browser check reads the exported manifest through Chrome and opens each launcher image. The native iOS configuration uses the same artwork at 1024 × 1024 pixels. Device installation and a public production URL are still pending. See the [phone installation steps](../README.md#install-the-web-app-on-a-phone).
+
 ## Stitch UI integration — 2026-11-18
 
 The five exported Stitch views are implemented in Expo and use the existing Java routes and Supabase session. The browser integration run uses the exported app, signed fixture identities, Spring Security, a limited JDBC login and disposable PostgreSQL. The mobile CI job publishes its captured screens as **stitch-ui-browser**. See [design decisions](DESIGN.md) and [reproduction](../mobile/AGENTS.md#browser-verification). Hosted Supabase Auth, physical iPhone and production observations remain outstanding.

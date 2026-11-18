@@ -6,7 +6,10 @@
     "orientation": "portrait",
     "scheme": "campuspantry",
     "userInterfaceStyle": "light",
-    "ios": { "supportsTablet": true },
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./assets/pantry-ios.png"
+    },
     "web": { "bundler": "metro", "output": "single", "name": "Campus Food Pantry" },
     "experiments": { "typedRoutes": false }
   }
