@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { AccessibilityInfo, Animated, Easing, Platform, type ViewStyle } from 'react-native';
 
 const MotionAllowed = createContext(false);
+export const useMotionAllowed = () => useContext(MotionAllowed);
 
 export function MotionPreference({ children }: React.PropsWithChildren) {
   const [allowed, setAllowed] = useState(false);

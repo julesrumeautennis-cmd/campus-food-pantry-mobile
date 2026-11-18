@@ -110,6 +110,8 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   assert.ok(hero && hero.height > 170 && Math.abs(hero.width / hero.height - 1.65) < 0.05, 'detail photograph keeps its aspect ratio');
   await snapshot(page, '02-lot-detail');
   await click('Add 2 units to basket');
+  await text('2 units already in basket').waitFor();
+  await click('View basket');
   await text('Total units requested').waitFor();
   await snapshot(page, '03-basket');
   await click('Proceed to review request');
@@ -145,10 +147,15 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   await page.getByRole('tab', { name: 'Browse' }).click();
   await click('Clear search');
   await click('Add one Toothpaste to basket');
+  await page.getByTestId('cart-flight').waitFor({ state: 'attached' });
   await click('View basket'); await click('Proceed to review request'); await click('Submit request (1 unit)');
   await text('Request submitted').waitFor(); await click('View my requests');
 
   const { page: staff } = await signIn(adminId, 'staff@example.test', 'reduce');
+  await staff.getByRole('tab', { name: 'Profile' }).click();
+  await staff.getByText('Student ID', { exact: true }).waitFor();
+  await staff.getByText(adminId, { exact: true }).waitFor();
+  await staff.getByRole('heading', { name: 'Request history' }).waitFor();
   await staff.getByRole('tab', { name: 'Admin' }).click();
   await staff.getByText('First in line', { exact: true }).waitFor();
   assert.equal(await staff.getByRole('button', { name: 'Approve request' }).count(), 1);
