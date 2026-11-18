@@ -38,4 +38,4 @@ for _ in {1..45}; do
   sleep 1
 done
 curl -fsS --max-time 3 http://127.0.0.1:4189/health/ready >/dev/null || { tail -40 "$screens/java.log"; exit 1; }
-node --test mobile/tests/browser/pantry.mjs
+node --test mobile/tests/browser/*.mjs
