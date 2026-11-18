@@ -1,5 +1,9 @@
 # Verified status
 
+## Stitch UI integration — 2026-11-18
+
+The five exported Stitch views are implemented in Expo and use the existing Java routes and Supabase session. The browser integration run uses the exported app, signed fixture identities, Spring Security, a limited JDBC login and disposable PostgreSQL. The mobile CI job publishes its captured screens as **stitch-ui-browser**. See [design decisions](DESIGN.md) and [reproduction](../mobile/AGENTS.md#browser-verification). Hosted Supabase Auth, physical iPhone and production observations remain outstanding.
+
 ## Integration handoff — 2026-11-18
 
 The application baseline is PR #1 at `dfc183d`. The [build plan](BUILD.md) links four ready issues and their dependencies. The [contract](CONTRACTS.md) links the executable shared example. The new concurrency check uses independent database sessions in disposable PostgreSQL. See the integration PR checks for evidence on its latest revision.

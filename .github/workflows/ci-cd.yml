@@ -91,7 +91,17 @@ jobs:
   mobile:
     name: Expo checks and bundles
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pantry_ui_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pantry_ui_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     defaults:
       run:
         working-directory: mobile
@@ -111,6 +121,34 @@ jobs:
         run: node --experimental-strip-types --test tests/*.test.mjs
       - name: Bundle iOS, Android and web
         run: npx expo export --platform all
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:4188
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-local-only
+          EXPO_PUBLIC_API_URL: http://127.0.0.1:4189
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Exercise member and FIFO staff screens against Java and PostgreSQL
+        working-directory: .
+        run: bash scripts/check-stitch-ui.sh
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: ci-only-password
+          PGDATABASE: pantry_ui_test
+          CHROME_BIN: /usr/bin/google-chrome
+      - name: Save verified browser views
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stitch-ui-browser
+          path: .local/stitch-ui/*.png
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
 
   vercel:
     name: Vercel configuration

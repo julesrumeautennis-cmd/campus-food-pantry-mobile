@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { supabase, authRedirect } from './supabase';
-import { Button, Field, Heading, Notice, s } from './ui';
+import { Brand, Button, Field, Heading, Notice, s } from './ui';
 
 export function AuthScreen({ recovery = false, onRecovered }: { recovery?: boolean; onRecovered: () => void }) {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login');
@@ -30,10 +30,11 @@ export function AuthScreen({ recovery = false, onRecovered }: { recovery?: boole
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to complete this request.'); }
     finally { setBusy(false); }
   }
-  const title = recovery ? 'Choose a new password.' : mode === 'signup' ? 'A place for everyone.' : mode === 'reset' ? 'Let’s get you back in.' : 'Your pantry.\nYour community.';
-  return <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingTop: 45, gap: 28 }]}>
-    <Text style={s.brand}>campus pantry<Text style={{ fontSize: 24 }}> ·</Text></Text>
-    <Heading eyebrow="CAMPUS FOOD PANTRY" title={title} description={mode === 'reset' ? 'Enter your email and we’ll send you a password reset link.' : 'Everyday essentials, a little more within reach.'} />
+  const title = recovery ? 'Choose a new password' : mode === 'signup' ? 'Create an account' : mode === 'reset' ? 'Reset your password' : 'Sign in to your pantry';
+  return <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <Brand subtitle="Roosevelt University" />
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingTop: 30, gap: 18 }]}>
+    <Heading title={title} description={mode === 'reset' ? 'Enter your email to receive a reset link.' : undefined} />
     {message ? <Notice text={message} /> : null}{error ? <Notice text={error} error /> : null}
     <View style={[s.card, { gap: 18 }]}>
       {!recovery && mode === 'signup' ? <Field label="Your name" value={name} onChangeText={setName} autoComplete="name" maxLength={80} /> : null}
