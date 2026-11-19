@@ -14,7 +14,7 @@ test('the cold launch hands its basket to sign-in and respects Reduce Motion', a
   await mkdir(captures, { recursive: true });
   for (const reducedMotion of ['no-preference', 'reduce']) {
     const recordVideo = ios && reducedMotion === 'no-preference'
-      ? { dir: captures, size: { width: 390, height: 844 } } : undefined;
+      ? { dir: captures, size: devices['iPhone 13'].viewport } : undefined;
     const context = await browser.newContext({ ...devices['iPhone 13'], reducedMotion, recordVideo });
     const page = await context.newPage();
     try {
@@ -52,8 +52,8 @@ test('the cold launch hands its basket to sign-in and respects Reduce Motion', a
       assert.ok(scales.length, 'Launch must mount even when session restore is fast');
       if (reducedMotion === 'reduce') assert.ok(scales.every(scale => scale === 1), 'Reduce Motion must keep the basket still');
       else {
-        assert.ok(Math.min(...scales) < 0.98, 'The basket anticipates the reveal');
-        assert.ok(Math.max(...scales) > 10, 'The opening grows through the basket');
+        assert.ok(Math.min(...scales) < 0.98, 'The basket anticipates the reveal: ' + scales.join(', '));
+        assert.ok(Math.max(...scales) > 10, 'The opening grows through the basket: ' + scales.join(', '));
         await page.screenshot({ path: captures + 'launch-sign-in.png' });
       }
       await page.getByRole('button', { name: 'Create an account' }).click();
