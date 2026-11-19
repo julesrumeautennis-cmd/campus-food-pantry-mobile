@@ -61,6 +61,8 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
       else { external.push(url.origin); await route.abort(); }
     });
     await page.goto(web);
+    await page.getByLabel('Email address').waitFor();
+    await page.getByTestId('launch-cover').waitFor({ state: 'detached' });
     await page.getByLabel('Email address').fill(email);
     await page.getByLabel('Password', { exact: true }).fill('isolated-test-password');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();

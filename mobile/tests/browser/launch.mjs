@@ -45,7 +45,6 @@ test('the cold launch hands its basket to sign-in and respects Reduce Motion', a
       assert.ok(poster[0].includes('pantry-mark.png'));
       assert.equal(poster[1], 'rgb(0, 53, 37)');
       assert.ok(poster[2] >= 336);
-      if (reducedMotion === 'no-preference') await page.screenshot({ path: captures + 'launch-poster.png' });
       releaseBundle();
       await page.getByRole('button', { name: 'Create an account' }).waitFor();
       await page.getByTestId('launch-cover').waitFor({ state: 'detached' });
@@ -55,6 +54,7 @@ test('the cold launch hands its basket to sign-in and respects Reduce Motion', a
       else {
         assert.ok(Math.min(...scales) < 0.98, 'The basket anticipates the reveal');
         assert.ok(Math.max(...scales) > 10, 'The opening grows through the basket');
+        await page.screenshot({ path: captures + 'launch-sign-in.png' });
       }
       await page.getByRole('button', { name: 'Create an account' }).click();
       assert.equal(await page.getByTestId('launch-cover').count(), 0);
