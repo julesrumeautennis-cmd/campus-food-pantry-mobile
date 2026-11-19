@@ -5,7 +5,7 @@ import { AdminScreen, type StaffPanel } from './AdminScreen';
 import { api, ApiFailure } from './api';
 import { Basket, SubmissionResult } from './BasketScreen';
 import { basketUnits, lineLimit, requestLines, setQuantity, units, validBasket } from './basket';
-import { CartFlight, PantryLoading, type Flight } from './CartMotion';
+import { CartFlight, type Flight } from './CartMotion';
 import { Reveal, useMotionAllowed } from './motion';
 import { defaultFilters, Detail, Shelf } from './Shelf';
 import { supabase } from './supabase';
@@ -82,7 +82,7 @@ function ProfileHistory() {
   return rows.length ? <>{rows.map(row => <RequestCard key={row.id} request={row} />)}</> : <Text style={s.small}>No requests yet</Text>;
 }
 
-export function PantryApp() {
+export function PantryApp({ onInitialReady }: { onInitialReady: () => void }) {
   const [me, setMe] = useState<Me | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [requests, setRequests] = useState<PantryRequest[]>([]);
@@ -162,6 +162,9 @@ export function PantryApp() {
     return () => activeLoad.current?.abort();
   }, [refresh]);
   useEffect(() => {
+    if (loaded.stock || loadFailure) onInitialReady();
+  }, [loaded.stock, loadFailure, onInitialReady]);
+  useEffect(() => {
     setActionError('');
   }, [page]);
 
@@ -236,7 +239,7 @@ export function PantryApp() {
     <View ref={container} collapsable={false} style={s.grow}>
       <Brand basketRef={basketButton} basketUnits={total} inBasket={kind === 'basket'} disabled={sending || staffBusy}
         onBack={contextual ? back : undefined} onBasket={me ? () => go({ kind: 'basket' }) : undefined} />
-      {!me ? (refreshing ? <PantryLoading /> : <View style={s.content}>
+      {!me ? (refreshing ? <ActivityIndicator accessibilityLabel="Loading pantry" color={colors.green} style={s.container} /> : <View style={s.content}>
         <Notice error text={loadError || 'Unable to load your pantry.'} /><Button title="Try again" onPress={() => void refresh()} />
         <Button title="Sign out" secondary onPress={() => void signOut()} />{actionError && <Notice error text={actionError} />}</View>) : <>
         <ScrollView key={screenKey} style={s.grow} keyboardShouldPersistTaps="handled"

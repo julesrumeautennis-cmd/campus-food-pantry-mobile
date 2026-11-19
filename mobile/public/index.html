@@ -10,10 +10,13 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#003525" />
+    <link rel="preload" as="image" href="/launch/pantry-mark.png" />
+    <link rel="preload" as="image" href="/launch/pantry-cutout.png" />
     <style id="expo-reset">
       html, body { height: 100%; }
       body { margin: 0; overflow: hidden; }
       #root { display: flex; height: 100%; flex: 1; }
+      #root:empty { background: #003525 url('/launch/pantry-mark.png') center / 112px 112px no-repeat; }
       @supports (height: 100dvh) { #root { height: 100dvh; } }
       @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
         #pantry-tabs {

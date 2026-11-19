@@ -102,6 +102,25 @@ test('member and staff complete the Stitch flow through Java and PostgreSQL', { 
   assert.equal(await page.getByRole('tab', { name: 'Admin' }).count(), 0);
   assert.equal((await fetch(api + '/admin/requests', { headers: { Authorization: 'Bearer ' + member.token } })).status, 403);
   await quota(0).waitFor();
+  // A restored session still reveals an actionable screen when its first read stalls or fails.
+  let answerProfile;
+  const delayedProfile = new Promise(resolve => { answerProfile = resolve; });
+  const profileRequest = page.waitForRequest(api + '/me');
+  await page.route(api + '/me', async route => {
+    await delayedProfile;
+    await route.fulfill({ status: 503, json: { code: 'SERVICE_BUSY', message: 'Please retry.' },
+      headers: { 'Access-Control-Allow-Origin': web } });
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await profileRequest;
+  await page.getByTestId('launch-cover').waitFor({ state: 'detached' });
+  await page.getByLabel('Loading pantry').waitFor();
+  answerProfile();
+  await page.getByRole('button', { name: 'Try again', exact: true }).waitFor();
+  await page.unroute(api + '/me');
+  await click('Try again');
+  await page.getByRole('button', { name: /^View Rice, lot 101/ }).waitFor();
+  assert.equal(await page.getByTestId('launch-cover').count(), 0);
   // An unavailable personal history must not prevent browsing, opening the basket or retrying.
   let historyReads = 0;
   await page.route(api + '/requests/mine', async route => {

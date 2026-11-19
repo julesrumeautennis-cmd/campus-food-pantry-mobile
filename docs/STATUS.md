@@ -1,5 +1,9 @@
 # Verified status
 
+## Cold launch
+
+The web app paints the Roosevelt vegetable basket before JavaScript starts. Its silhouette opens onto sign-in or the restored pantry, with a short crossfade for Reduce Motion. A slow or failed first request hands off to the screen's loading and retry controls. The mobile browser checks cover the first paint, both motion preferences, a restored session, and retry.
+
 ## iPhone navigation and request history
 
 The authenticated app uses the role from Java, a header basket and a safe-area-aware floating tab bar. Member history is fetched on the Requests screen or when expanded in Profile. Staff views load their own data. The integration test exercises a failed history refresh, a member denied staff access, all four staff sections and the inset dock at multiple phone widths.
