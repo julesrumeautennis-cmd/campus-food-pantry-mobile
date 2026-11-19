@@ -19,16 +19,30 @@ test('the cold launch hands its basket to sign-in and respects Reduce Motion', a
     const page = await context.newPage();
     try {
       await page.addInitScript(() => {
-        const scales = window.launchScales = [];
-        function sample() {
-          const frame = document.querySelector('[data-testid="launch-aperture"]');
-          if (frame) {
-            const transform = getComputedStyle(frame).transform;
-            scales.push(transform === 'none' ? 1 : new DOMMatrixReadOnly(transform).a);
+        const tracks = window.launchTracks = [];
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (...args) {
+          const animation = animate.apply(this, args);
+          const id = this.getAttribute('data-testid');
+          if (id !== 'launch-aperture' && id !== 'launch-cover') return animation;
+          const duration = Number(animation.effect.getTiming().duration);
+          const times = id === 'launch-aperture' ? [0, 0.15, 0.49, 0.94] : [0, 0.5, 1];
+          const track = { id, duration, values: [], finished: false };
+          tracks.push(track);
+          // Seek before the browser paints, then play the complete transition for the recording.
+          // Busy WebKit runners can deliver only a few animation-frame callbacks during launch.
+          animation.pause();
+          for (const time of times) {
+            animation.currentTime = duration * time;
+            const style = getComputedStyle(this);
+            if (id === 'launch-cover') track.values.push(Number(style.opacity));
+            else track.values.push(style.transform === 'none' ? 1 : new DOMMatrixReadOnly(style.transform).a);
           }
-          if (frame || !scales.length) requestAnimationFrame(sample);
-        }
-        requestAnimationFrame(sample);
+          animation.currentTime = 0;
+          animation.play();
+          animation.finished.then(() => { track.finished = true; }, () => {});
+          return animation;
+        };
       });
       let releaseBundle;
       const bundleGate = new Promise(resolve => { releaseBundle = resolve; });
@@ -48,12 +62,19 @@ test('the cold launch hands its basket to sign-in and respects Reduce Motion', a
       releaseBundle();
       await page.getByRole('button', { name: 'Create an account' }).waitFor();
       await page.getByTestId('launch-cover').waitFor({ state: 'detached' });
-      const scales = await page.evaluate(() => window.launchScales);
-      assert.ok(scales.length, 'Launch must mount even when session restore is fast');
-      if (reducedMotion === 'reduce') assert.ok(scales.every(scale => scale === 1), 'Reduce Motion must keep the basket still');
-      else {
-        assert.ok(Math.min(...scales) < 0.98, 'The basket anticipates the reveal: ' + scales.join(', '));
-        assert.ok(Math.max(...scales) > 10, 'The opening grows through the basket: ' + scales.join(', '));
+      const tracks = await page.evaluate(() => window.launchTracks);
+      if (reducedMotion === 'reduce') {
+        assert.ok(!tracks.some(track => track.id === 'launch-aperture'), 'Reduce Motion must keep the basket still');
+        const fade = tracks.find(track => track.id === 'launch-cover' && track.finished);
+        assert.ok(fade, 'The short crossfade must finish');
+        assert.ok(fade.duration <= 200 && fade.values[0] === 1 && fade.values[2] === 0);
+        assert.ok(Math.abs(fade.values[1] - 0.5) < 0.02);
+      } else {
+        const opening = tracks.find(track => track.id === 'launch-aperture' && track.finished);
+        assert.ok(opening, 'The opening must finish on a fast session restore');
+        const [rest, pinch, reveal, full] = opening.values;
+        assert.ok(Math.abs(rest - 1) < 0.01 && Math.abs(pinch - 0.8) < 0.02, JSON.stringify(opening));
+        assert.ok(Math.abs(reveal - 4) < 0.1 && full > 10, JSON.stringify(opening));
         await page.screenshot({ path: captures + 'launch-sign-in.png' });
       }
       await page.getByRole('button', { name: 'Create an account' }).click();
